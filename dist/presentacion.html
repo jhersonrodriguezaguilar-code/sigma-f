@@ -1,0 +1,1287 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#091514">
+<title>Expediente SIGMA-F</title>
+<meta name="description" content="Presentación interactiva tipo novela visual: auditoría de sistemas al prototipo SIGMA-F, con avatar que habla y responde preguntas.">
+<link rel="icon" type="image/svg+xml" href="sigma-f-mark.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=IBM+Plex+Mono:wght@400;500;600&family=Poltawski+Nowy:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #091514;
+  --bg-2: #0d201d;
+  --panel: rgba(6, 18, 16, .9);
+  --line: rgba(201, 222, 207, .16);
+  --line-strong: rgba(201, 222, 207, .32);
+  --text: #eee6d7;
+  --muted: #aec0b5;
+  --mint: #72d5b7;
+  --mint-2: #45b997;
+  --amber: #d6a760;
+  --red: #d87866;
+  --paper: #f3ecdf;
+  --paper-2: #e9dfcd;
+  --ink: #17231f;
+  --ink-2: #4a5a54;
+  --font-body: "DM Sans", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Poltawski Nowy", Georgia, serif;
+  --font-data: "IBM Plex Mono", Consolas, monospace;
+  --dlg-h: 188px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-body); overflow: hidden; }
+button { font: inherit; cursor: pointer; color: inherit; }
+:focus-visible { outline: 3px solid rgba(114, 213, 183, .75); outline-offset: 3px; }
+
+/* ---------- Escenario ---------- */
+.stage { position: fixed; inset: 0; overflow: hidden; }
+.bg { position: absolute; inset: 0; transition: opacity .9s ease; }
+.bg svg { width: 100%; height: 100%; display: block; }
+.bg.fade { opacity: 0; }
+.vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 40%, transparent 40%, rgba(0,0,0,.55) 100%); }
+.blink-led { animation: led 1.6s infinite steps(2); }
+@keyframes led { 50% { opacity: .15; } }
+.pulse-node { animation: pnode 3s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes pnode { 50% { transform: scale(1.6); opacity: .4; } }
+.scan { animation: scan 6s linear infinite; }
+@keyframes scan { from { transform: translateY(-900px); } to { transform: translateY(900px); } }
+
+/* ---------- HUD ---------- */
+.hud { position: absolute; top: 0; left: 0; right: 0; z-index: 30; display: flex; align-items: center; gap: 14px; padding: 12px 18px; background: linear-gradient(rgba(5,14,13,.85), rgba(5,14,13,0)); }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -.02em; }
+.brand img { width: 30px; height: 30px; }
+.brand span b { color: var(--mint); }
+.chap-label { color: var(--muted); font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.progress { flex: 1; height: 6px; border-radius: 9px; background: rgba(255,255,255,.08); overflow: hidden; min-width: 60px; }
+.progress i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--mint-2), var(--amber)); transition: width .4s; }
+.stat { font-family: var(--font-data); font-size: .8rem; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; background: rgba(0,0,0,.25); }
+.stat b { color: var(--amber); }
+.hud-btn { border: 1px solid var(--line-strong); background: rgba(9,21,20,.7); border-radius: 999px; padding: 7px 13px; font-size: .82rem; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.hud-btn:hover { border-color: var(--mint); }
+.hud-btn.on { background: var(--mint); color: #06120f; border-color: var(--mint); }
+.hud-btn.mic { background: var(--amber); color: #1a1206; border-color: var(--amber); font-weight: 700; }
+.hud-btn svg { width: 16px; height: 16px; }
+
+/* ---------- Tarjeta (diapositiva) ---------- */
+.card-zone { position: absolute; left: 3vw; top: 72px; width: min(57vw, 860px); bottom: calc(var(--dlg-h) + 36px); display: flex; align-items: center; z-index: 8; transition: opacity .35s; }
+.card { position: relative; width: 100%; max-height: 100%; overflow: auto; background: var(--paper); color: var(--ink); border-radius: 6px 18px 18px 18px; padding: 26px 30px 24px; box-shadow: 0 24px 60px rgba(0,0,0,.45), inset 0 0 0 1px rgba(0,0,0,.05); animation: cardIn .55s cubic-bezier(.2,.8,.2,1); background-image: linear-gradient(transparent 31px, rgba(23,35,31,.045) 32px); background-size: 100% 32px; }
+.card::before { content: ""; position: absolute; top: -12px; left: 34px; width: 110px; height: 24px; background: rgba(214,167,96,.75); transform: rotate(-3deg); box-shadow: 0 2px 4px rgba(0,0,0,.15); }
+@keyframes cardIn { from { opacity: 0; transform: translateY(18px) rotate(-.6deg); } to { opacity: 1; transform: none; } }
+.card .kicker { font-family: var(--font-data); font-size: .74rem; letter-spacing: .12em; text-transform: uppercase; color: #8a6a2f; margin-bottom: 6px; }
+.card h2 { font-family: var(--font-display); font-size: clamp(1.5rem, 2.6vw, 2.35rem); line-height: 1.08; margin: 0 0 14px; letter-spacing: -.01em; }
+.card h3 { font-family: var(--font-display); font-size: 1.15rem; margin: 14px 0 6px; }
+.card p { margin: 0 0 10px; font-size: clamp(.95rem, 1.15vw, 1.08rem); line-height: 1.5; color: #24332e; }
+.card ul { margin: 6px 0 10px; padding-left: 20px; }
+.card li { margin: 4px 0; font-size: clamp(.92rem, 1.1vw, 1.04rem); line-height: 1.45; }
+.card code, .mono { font-family: var(--font-data); font-size: .86em; background: rgba(23,35,31,.08); padding: 1px 6px; border-radius: 5px; }
+.stamp { position: absolute; right: 22px; top: 18px; transform: rotate(8deg); border: 3px solid currentColor; border-radius: 8px; padding: 4px 10px; font-family: var(--font-data); font-weight: 600; font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; opacity: .85; }
+.stamp.ok { color: #2f8a6c; } .stamp.warn { color: #b9822d; } .stamp.bad { color: #b4473a; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.tile { background: rgba(255,255,255,.55); border: 1px solid rgba(23,35,31,.12); border-radius: 12px; padding: 12px 14px; }
+.tile b { display: block; font-size: .98rem; margin-bottom: 3px; }
+.tile span { font-size: .88rem; color: var(--ink-2); line-height: 1.4; display: block; }
+.tile .n { font-family: var(--font-data); color: #8a6a2f; font-size: .78rem; }
+table.t { width: 100%; border-collapse: collapse; font-size: clamp(.82rem, 1vw, .95rem); }
+table.t th { text-align: left; font-family: var(--font-data); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); border-bottom: 2px solid rgba(23,35,31,.2); padding: 6px 8px; }
+table.t td { border-bottom: 1px solid rgba(23,35,31,.1); padding: 7px 8px; vertical-align: top; }
+.pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: .75rem; font-weight: 700; white-space: nowrap; }
+.pill.Alto { background: #f2c9c1; color: #8f2e22; } .pill.Medio { background: #f4dfb8; color: #7d5512; } .pill.Bajo { background: #cfeadf; color: #22664f; }
+.pill.ok { background: #cfeadf; color: #22664f; }
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; counter-reset: s; }
+.steps div { position: relative; background: #fff8; border: 1px solid rgba(23,35,31,.14); border-radius: 12px; padding: 30px 10px 10px; font-size: .88rem; line-height: 1.35; }
+.steps div::before { counter-increment: s; content: "0" counter(s); position: absolute; top: 8px; left: 10px; font-family: var(--font-data); font-size: .72rem; color: #8a6a2f; }
+.steps b { display: block; font-size: .96rem; margin-bottom: 3px; }
+.cover { text-align: left; }
+.cover img { width: 64px; height: 64px; }
+.cover h2 { font-size: clamp(2rem, 3.6vw, 3.2rem); margin-top: 10px; }
+.cover .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.cover .meta span { font-family: var(--font-data); font-size: .78rem; border: 1px solid rgba(23,35,31,.25); padding: 4px 10px; border-radius: 999px; }
+.finding-attr { display: grid; grid-template-columns: 92px 1fr; gap: 4px 12px; font-size: clamp(.86rem, 1.05vw, 1rem); line-height: 1.42; }
+.finding-attr dt { font-family: var(--font-data); font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: #8a6a2f; padding-top: 3px; }
+.finding-attr dd { margin: 0; }
+.matrix { display: grid; grid-template-columns: 34px repeat(3, 1fr); grid-template-rows: repeat(3, minmax(64px, auto)) 26px; gap: 5px; }
+.matrix .cell { border-radius: 10px; padding: 6px; display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; }
+.matrix .ax { font-family: var(--font-data); font-size: .7rem; color: var(--ink-2); display: flex; align-items: center; justify-content: center; }
+.matrix .ax.v { writing-mode: vertical-rl; transform: rotate(180deg); }
+.matrix .chip { font-family: var(--font-data); font-size: .74rem; font-weight: 600; background: #fff; border-radius: 6px; padding: 2px 6px; box-shadow: 0 1px 2px rgba(0,0,0,.15); cursor: help; }
+.lv1 { background: #cfeadf; } .lv2 { background: #f4dfb8; } .lv3 { background: #f2c9c1; }
+.arch { width: 100%; height: auto; }
+.demo-btn { margin-top: 8px; border: 0; background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 999px; font-size: .86rem; font-weight: 600; }
+.demo-out { font-family: var(--font-data); font-size: .8rem; margin-top: 8px; white-space: pre-wrap; color: #1f4d40; }
+.sms { background: #fff; border-radius: 16px 16px 16px 4px; padding: 12px 14px; box-shadow: 0 2px 8px rgba(0,0,0,.12); font-size: 1.02rem; max-width: 460px; }
+
+/* ---------- Avatar ---------- */
+.sprite { position: absolute; right: 1.5vw; bottom: 0; height: min(88vh, 960px); aspect-ratio: 400 / 620; z-index: 6; transition: transform .6s cubic-bezier(.2,.8,.2,1), opacity .5s, filter .4s; transform-origin: 50% 100%; }
+.sprite svg { width: 100%; height: 100%; overflow: visible; }
+.sprite.dim { filter: brightness(.55) saturate(.7); }
+.sprite.hidden { opacity: 0; transform: translateX(60px); }
+.sprite .breath { animation: breath 4.6s ease-in-out infinite; transform-origin: 200px 620px; }
+@keyframes breath { 50% { transform: translateY(3px) scaleY(.995); } }
+.sprite .eyes { transform-origin: 205px 255px; transition: transform .07s; }
+.sprite.blink .eyes { transform: scaleY(.08); }
+.sprite .brows { transition: transform .3s; transform-origin: 205px 228px; }
+.sprite.expr-happy .brows { transform: translateY(-5px); }
+.sprite.expr-serious .brow-l { transform: rotate(9deg); transform-origin: 172px 226px; }
+.sprite.expr-serious .brow-r { transform: rotate(-9deg); transform-origin: 238px 226px; }
+.sprite.expr-surprised .brows { transform: translateY(-11px); }
+.sprite.expr-thinking .brow-l { transform: translateY(-7px) rotate(-6deg); transform-origin: 172px 226px; }
+.sprite .brow-l, .sprite .brow-r { transition: transform .3s; }
+.sprite .blush { opacity: .28; transition: opacity .4s; }
+.sprite.expr-happy .blush { opacity: .55; }
+.sprite .irises { transition: transform .4s; }
+.sprite.expr-thinking .irises { transform: translate(5px, -5px); }
+.sprite.talking .glow { opacity: .9; }
+.sprite .glow { opacity: 0; transition: opacity .3s; }
+.sigma-orb { position: absolute; right: calc(1.5vw + min(88vh, 960px) * .62); bottom: calc(var(--dlg-h) + 40px); width: 150px; height: 150px; z-index: 7; opacity: 0; transform: scale(.6); transition: opacity .4s, transform .5s cubic-bezier(.2,.8,.2,1); pointer-events: none; }
+.sigma-orb.show { opacity: 1; transform: scale(1); animation: float 4s ease-in-out infinite; }
+@keyframes float { 50% { translate: 0 -12px; } }
+.sigma-orb .ring { position: absolute; inset: -14px; border-radius: 50%; border: 2px solid rgba(214,167,96,.5); animation: ring 2.2s ease-out infinite; }
+.sigma-orb .ring:nth-child(2) { animation-delay: 1.1s; }
+@keyframes ring { from { transform: scale(.8); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+.sigma-orb img { width: 100%; height: 100%; border-radius: 30px; box-shadow: 0 0 60px rgba(214,167,96,.55); }
+
+/* ---------- Diálogo ---------- */
+.dialog { position: absolute; left: 3vw; right: 3vw; bottom: 18px; min-height: var(--dlg-h); z-index: 12; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 18px; padding: 28px 32px 44px; backdrop-filter: blur(12px); box-shadow: 0 -10px 50px rgba(0,0,0,.35); cursor: pointer; transition: opacity .35s; }
+.nametag { position: absolute; top: -17px; left: 26px; background: var(--mint); color: #06120f; font-weight: 700; padding: 5px 18px; border-radius: 999px; font-size: .95rem; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+.nametag small { font-weight: 500; opacity: .75; margin-left: 6px; }
+.nametag.sigma { background: var(--amber); color: #1a1206; }
+.nametag.narr { background: #2b3f3a; color: var(--text); }
+.dlg-text { font-size: clamp(17px, 1.55vw, 24px); line-height: 1.5; max-width: 1150px; min-height: 3em; }
+.dlg-text.narr { font-style: italic; color: #d9cfbd; }
+.dlg-text .caret { display: inline-block; width: 9px; height: 1em; background: var(--mint); vertical-align: -2px; margin-left: 3px; animation: caret 1s steps(2) infinite; }
+@keyframes caret { 50% { opacity: 0; } }
+.dlg-ctrl { position: absolute; right: 18px; bottom: 10px; display: flex; gap: 6px; align-items: center; }
+.dlg-ctrl button { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; font-size: .78rem; color: var(--muted); }
+.dlg-ctrl button:hover { color: var(--text); border-color: var(--mint); }
+.dlg-ctrl button.on { background: var(--mint); color: #06120f; border-color: var(--mint); }
+.next-ind { position: absolute; left: 32px; bottom: 12px; font-size: .78rem; color: var(--muted); font-family: var(--font-data); opacity: 0; transition: opacity .3s; }
+.next-ind.show { opacity: 1; animation: nudge 1.2s ease-in-out infinite; }
+@keyframes nudge { 50% { transform: translateX(6px); } }
+.choices { position: absolute; right: 3vw; bottom: calc(var(--dlg-h) + 40px); z-index: 25; display: none; flex-direction: column; gap: 10px; width: min(36vw, 540px); }
+.choices.show { display: flex; animation: cardIn .4s; }
+.choices .q { text-align: left; background: rgba(6,18,16,.9); border-radius: 10px; padding: 8px 12px; line-height: 1.4; font-family: var(--font-data); font-size: .78rem; color: var(--amber); letter-spacing: .1em; text-transform: uppercase; }
+.choice { text-align: left; background: rgba(6,18,16,.94); border: 1px solid var(--line-strong); border-radius: 14px; padding: 14px 18px; font-size: 1.05rem; transition: transform .15s, border-color .15s, background .15s; }
+.choice:hover { transform: translateX(6px); border-color: var(--amber); }
+.choice.right { background: #1b4a3c; border-color: var(--mint); }
+.choice.wrong { background: #4a221d; border-color: var(--red); }
+.choice:disabled { cursor: default; transform: none; }
+
+/* ---------- Pantallas y overlays ---------- */
+.screen { position: fixed; inset: 0; z-index: 60; display: none; }
+.screen.show { display: block; }
+.title-screen { background: radial-gradient(ellipse at 30% 30%, rgba(114,213,183,.12), transparent 55%), radial-gradient(ellipse at 80% 80%, rgba(214,167,96,.14), transparent 55%), rgba(6,14,13,.72); }
+.title-inner { position: absolute; left: 6vw; top: 50%; transform: translateY(-50%); width: min(620px, 88vw); }
+.title-inner .tag { font-family: var(--font-data); color: var(--amber); letter-spacing: .16em; text-transform: uppercase; font-size: .78rem; }
+.title-inner h1 { font-family: var(--font-display); font-size: clamp(2.6rem, 6vw, 5.2rem); line-height: .95; margin: 12px 0 14px; letter-spacing: -.02em; }
+.title-inner h1 em { color: var(--mint); font-style: normal; }
+.title-inner p { color: var(--muted); font-size: 1.08rem; line-height: 1.55; margin: 0 0 26px; }
+.menu { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.menu button { min-width: 300px; text-align: left; border: 1px solid var(--line-strong); background: rgba(9,21,20,.8); padding: 13px 20px; border-radius: 14px; font-size: 1.05rem; display: flex; align-items: center; gap: 12px; transition: transform .15s, border-color .15s; }
+.menu button:hover { transform: translateX(8px); border-color: var(--mint); }
+.menu button.primary { background: var(--mint); color: #06120f; border-color: var(--mint); font-weight: 700; }
+.menu button kbd { margin-left: auto; font-family: var(--font-data); font-size: .72rem; opacity: .6; }
+.title-note { margin-top: 18px; font-size: .84rem; color: var(--muted); max-width: 520px; }
+.overlay { position: fixed; inset: 0; z-index: 70; display: none; background: rgba(3,9,8,.78); backdrop-filter: blur(6px); }
+.overlay.show { display: block; animation: fadeIn .3s; }
+@keyframes fadeIn { from { opacity: 0; } }
+.sheet { position: absolute; inset: 4vh 4vw; background: var(--bg-2); border: 1px solid var(--line-strong); border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; }
+.sheet-head { display: flex; align-items: center; gap: 12px; padding: 16px 22px; border-bottom: 1px solid var(--line); }
+.sheet-head h2 { margin: 0; font-family: var(--font-display); font-size: 1.5rem; flex: 1; }
+.x { border: 1px solid var(--line-strong); background: transparent; border-radius: 999px; width: 38px; height: 38px; font-size: 1.1rem; }
+.tabs { display: flex; gap: 6px; padding: 10px 18px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tabs button { border: 1px solid var(--line); background: transparent; color: var(--muted); padding: 7px 14px; border-radius: 999px; white-space: nowrap; font-size: .88rem; }
+.tabs button.on { background: var(--mint); color: #06120f; border-color: var(--mint); font-weight: 700; }
+.sheet-body { flex: 1; overflow: auto; padding: 22px 26px 30px; }
+.sheet-body .card { animation: none; max-width: 1100px; margin: 0 auto; max-height: none; }
+.chap-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; padding: 22px; overflow: auto; }
+.chap-item { text-align: left; border: 1px solid var(--line-strong); background: rgba(255,255,255,.03); border-radius: 16px; padding: 16px; }
+.chap-item:hover { border-color: var(--mint); }
+.chap-item .n { font-family: var(--font-data); color: var(--amber); font-size: .76rem; }
+.chap-item b { display: block; font-family: var(--font-display); font-size: 1.2rem; margin: 4px 0; }
+.chap-item span { color: var(--muted); font-size: .88rem; }
+.chap-intro { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(4,10,9,.92); opacity: 0; pointer-events: none; transition: opacity .5s; }
+.chap-intro.show { opacity: 1; }
+.chap-intro .n { font-family: var(--font-data); color: var(--amber); letter-spacing: .3em; text-transform: uppercase; }
+.chap-intro h2 { font-family: var(--font-display); font-size: clamp(2.2rem, 5vw, 4.4rem); margin: 10px 0 0; text-align: center; padding: 0 20px; }
+.chap-intro .line { width: 0; height: 2px; background: var(--mint); margin-top: 18px; transition: width 1.2s .2s; }
+.chap-intro.show .line { width: 220px; }
+
+/* ---------- Panel de preguntas ---------- */
+.ask { position: absolute; left: 3vw; top: 72px; bottom: 18px; width: min(56vw, 820px); z-index: 40; display: none; flex-direction: column; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 20px; backdrop-filter: blur(12px); overflow: hidden; }
+.stage:not(.started) .dialog, .stage:not(.started) .card-zone { opacity: 0; pointer-events: none; }
+.stage.asking .ask { display: flex; animation: cardIn .4s; }
+.stage.asking .dialog, .stage.asking .card-zone, .stage.asking .choices { opacity: 0; pointer-events: none; }
+.ask-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.ask-head h3 { margin: 0; flex: 1; font-family: var(--font-display); font-size: 1.3rem; }
+.src { font-family: var(--font-data); font-size: .72rem; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; }
+.chat { flex: 1; overflow: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.msg { max-width: 86%; padding: 11px 15px; border-radius: 16px; line-height: 1.5; font-size: 1.02rem; }
+.msg.user { align-self: flex-end; background: #234a40; border-bottom-right-radius: 4px; }
+.msg.ada { align-self: flex-start; background: var(--paper); color: var(--ink); border-bottom-left-radius: 4px; }
+.msg.ada small { display: block; margin-top: 4px; font-family: var(--font-data); font-size: .7rem; color: var(--ink-2); }
+.msg.typing { color: var(--ink-2); font-style: italic; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 18px 10px; }
+.chips button { border: 1px solid var(--line-strong); background: transparent; border-radius: 999px; padding: 5px 11px; font-size: .82rem; color: var(--muted); }
+.chips button:hover { color: var(--text); border-color: var(--amber); }
+.ask-bar { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); align-items: center; }
+.ask-bar input { flex: 1; min-width: 0; background: rgba(255,255,255,.06); border: 1px solid var(--line-strong); border-radius: 999px; padding: 12px 16px; color: var(--text); font: inherit; font-size: 1rem; }
+.mic-btn { width: 52px; height: 52px; border-radius: 50%; border: 0; background: var(--amber); color: #1a1206; display: grid; place-items: center; position: relative; flex: none; }
+.mic-btn svg { width: 24px; height: 24px; }
+.mic-btn.rec { background: var(--red); color: #fff; }
+.mic-btn .lvl { position: absolute; inset: -6px; border-radius: 50%; border: 3px solid var(--red); opacity: 0; transition: transform .08s; }
+.mic-btn.rec .lvl { opacity: .7; }
+.send-btn { height: 46px; border-radius: 999px; border: 0; background: var(--mint); color: #06120f; padding: 0 18px; font-weight: 700; }
+.mic-state { font-size: .8rem; color: var(--muted); padding: 0 18px 8px; min-height: 1.2em; }
+
+/* ---------- Toasts, final ---------- */
+.toast-wrap { position: fixed; top: 70px; right: 20px; z-index: 90; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.toast { background: rgba(6,18,16,.96); border: 1px solid var(--amber); border-left: 5px solid var(--amber); border-radius: 12px; padding: 10px 14px; max-width: 340px; font-size: .9rem; animation: toast 4.2s forwards; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+.toast b { color: var(--amber); display: block; font-family: var(--font-data); font-size: .74rem; letter-spacing: .08em; text-transform: uppercase; }
+.toast.good { border-color: var(--mint); } .toast.good b { color: var(--mint); }
+@keyframes toast { 0% { opacity: 0; transform: translateX(30px); } 8%, 85% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateX(30px); } }
+.ev-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; padding: 22px; overflow: auto; }
+.ev-item { border: 1px solid var(--line-strong); border-radius: 14px; padding: 14px; background: rgba(255,255,255,.03); }
+.ev-item.locked { opacity: .35; }
+.ev-item .id { font-family: var(--font-data); color: var(--amber); font-size: .78rem; }
+.ev-item b { display: block; margin: 4px 0; }
+.ev-item span { color: var(--muted); font-size: .88rem; }
+.final-box { position: absolute; left: 6vw; top: 50%; transform: translateY(-50%); width: min(640px, 88vw); }
+.final-box h1 { font-family: var(--font-display); font-size: clamp(2.2rem, 5vw, 4rem); margin: 8px 0; }
+.score-row { display: flex; gap: 12px; flex-wrap: wrap; margin: 18px 0 24px; }
+.score-row div { border: 1px solid var(--line-strong); border-radius: 16px; padding: 14px 18px; min-width: 150px; background: rgba(0,0,0,.3); }
+.score-row b { display: block; font-family: var(--font-display); font-size: 2rem; color: var(--amber); }
+.score-row span { color: var(--muted); font-size: .85rem; }
+
+@media (max-width: 900px) {
+  :root { --dlg-h: 150px; }
+  .card-zone { width: auto; right: 3vw; top: 64px; bottom: calc(var(--dlg-h) + 30px); }
+  .sprite { height: 46vh; right: -4vw; opacity: .9; }
+  .sigma-orb { width: 90px; height: 90px; right: 30vw; }
+  .chap-label, .stat.ev, .hud-btn .lbl { display: none; }
+  .hud { gap: 8px; padding: 10px; }
+  .dialog { padding: 24px 18px 40px; left: 10px; right: 10px; }
+  .grid2, .grid3, .steps { grid-template-columns: 1fr; }
+  .ask { left: 10px; right: 10px; width: auto; }
+  .choices { left: 10px; right: 10px; width: auto; }
+  .sheet { inset: 8px; }
+  .menu button { min-width: 0; width: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="bg" id="bgA"></div>
+  <div class="bg fade" id="bgB"></div>
+  <div class="vignette"></div>
+
+  <header class="hud">
+    <div class="brand"><img src="sigma-f-mark.svg" alt=""><span>Expediente <b>SIGMA-F</b></span></div>
+    <div class="chap-label" id="chapLabel">Auditoría de sistemas</div>
+    <div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+    <div class="stat" title="Puntos de auditor">XP <b id="xp">0</b></div>
+    <button class="hud-btn stat ev" id="btnEvidence" title="Evidencias recolectadas">Evidencias <b id="evCount">0/15</b></button>
+    <button class="hud-btn" id="btnChapters" title="Capítulos (C)"><span class="lbl">Capítulos</span><span aria-hidden="true">☰</span></button>
+    <button class="hud-btn" id="btnExplain" title="Explicación del proyecto (E)"><span class="lbl">Explicación</span><span aria-hidden="true">📘</span></button>
+    <button class="hud-btn on" id="btnVoice" title="Voz de Ada (V)"><span class="lbl">Voz</span><span aria-hidden="true">🔊</span></button>
+    <button class="hud-btn mic" id="btnAsk" title="Pregúntale a Ada (M)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 1 0-7 0v6A3.5 3.5 0 0 0 12 15Zm6-3.6a1 1 0 1 0-2 0 4 4 0 0 1-8 0 1 1 0 1 0-2 0 6 6 0 0 0 5 5.9V20H8.5a1 1 0 1 0 0 2h7a1 1 0 1 0 0-2H13v-2.7a6 6 0 0 0 5-5.9Z"/></svg><span class="lbl">Preguntar</span></button>
+    <button class="hud-btn" id="btnFull" title="Pantalla completa (F)">⛶</button>
+  </header>
+
+  <section class="card-zone" id="cardZone" aria-live="polite"></section>
+
+  <div class="sigma-orb" id="sigmaOrb"><div class="ring"></div><div class="ring"></div><img src="sigma-f-mark.svg" alt="SIGMA-F"></div>
+
+  <div class="sprite expr-neutral" id="sprite" aria-hidden="true">
+    <svg viewBox="0 0 400 620" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="gIris" cx="45%" cy="40%" r="60%"><stop offset="0" stop-color="#c79a52"/><stop offset=".6" stop-color="#7a5230"/><stop offset="1" stop-color="#3b2516"/></radialGradient>
+        <linearGradient id="gHair" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b2733"/><stop offset="1" stop-color="#1f151c"/></linearGradient>
+        <linearGradient id="gBlazer" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c4038"/><stop offset="1" stop-color="#0f2621"/></linearGradient>
+        <linearGradient id="gSkin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6d2b4"/><stop offset="1" stop-color="#ecbd9b"/></linearGradient>
+        <radialGradient id="gGlow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#72d5b7" stop-opacity=".35"/><stop offset="1" stop-color="#72d5b7" stop-opacity="0"/></radialGradient>
+      </defs>
+      <ellipse class="glow" cx="205" cy="300" rx="200" ry="260" fill="url(#gGlow)"/>
+      <g class="breath">
+        <path d="M95 250C88 130 150 66 207 68c66 2 116 62 108 182 6 80 18 170-14 222-30-26-170-26-202 0-30-52-12-140-4-222Z" fill="url(#gHair)"/>
+        <path d="M176 392h50l5 82q-30 22-60 0Z" fill="#e2ac8a"/>
+        <path d="M46 620c4-96 62-150 154-156 92 6 150 60 154 156Z" fill="url(#gBlazer)"/>
+        <path d="M168 466 200 560l32-94q-32 14-64 0Z" fill="#efe7d8"/>
+        <path d="M168 466c-30 6-52 30-60 64l40 90h40l12-60-32-94Z" fill="#245046"/>
+        <path d="M232 466c30 6 52 30 60 64l-40 90h-40l-12-60 32-94Z" fill="#245046"/>
+        <path d="M150 482 186 590" stroke="#72d5b7" stroke-width="2.5" opacity=".7"/>
+        <path d="M250 482 214 590" stroke="#72d5b7" stroke-width="2.5" opacity=".7"/>
+        <rect x="258" y="540" width="38" height="46" rx="7" fill="#d6a760"/>
+        <path d="M277 548l11 4v8c0 8-5 13-11 16-6-3-11-8-11-16v-8Z" fill="#091514"/>
+        <rect x="262" y="577" width="30" height="3" rx="1.5" fill="#091514" opacity=".5"/>
+        <ellipse cx="131" cy="258" rx="11" ry="19" fill="#ecbd9b"/>
+        <ellipse cx="281" cy="258" rx="11" ry="19" fill="#ecbd9b"/>
+        <circle cx="131" cy="282" r="4" fill="#d6a760"/>
+        <circle cx="281" cy="282" r="4" fill="#d6a760"/>
+        <path d="M132 232c0-80 34-120 74-120 42 0 74 40 74 120 0 72-30 132-74 148-44-16-74-76-74-148Z" fill="url(#gSkin)"/>
+        <ellipse class="blush" cx="160" cy="304" rx="15" ry="7" fill="#f2918a"/>
+        <ellipse class="blush" cx="252" cy="304" rx="15" ry="7" fill="#f2918a"/>
+        <g class="eyes">
+          <ellipse cx="172" cy="257" rx="17" ry="12.5" fill="#fff"/>
+          <ellipse cx="240" cy="257" rx="17" ry="12.5" fill="#fff"/>
+          <g class="irises">
+            <circle cx="173" cy="258" r="10" fill="url(#gIris)"/>
+            <circle cx="241" cy="258" r="10" fill="url(#gIris)"/>
+            <circle cx="173" cy="259" r="4.6" fill="#1b120e"/>
+            <circle cx="241" cy="259" r="4.6" fill="#1b120e"/>
+            <circle cx="169.5" cy="254" r="3" fill="#fff"/>
+            <circle cx="237.5" cy="254" r="3" fill="#fff"/>
+          </g>
+          <path d="M153 253q19-16 38-3" stroke="#1b1418" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M221 250q19-13 38 3" stroke="#1b1418" stroke-width="4" fill="none" stroke-linecap="round"/>
+        </g>
+        <g class="brows">
+          <path class="brow-l" d="M154 230q18-9 36-3" stroke="#2a1d24" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+          <path class="brow-r" d="M222 227q18-6 36 3" stroke="#2a1d24" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+        </g>
+        <g fill="rgba(156,215,203,.1)" stroke="#c9a35e" stroke-width="2.6">
+          <rect x="148" y="236" width="50" height="42" rx="16"/>
+          <rect x="214" y="236" width="50" height="42" rx="16"/>
+          <path d="M198 252q8-6 16 0" fill="none"/>
+        </g>
+        <path d="M207 272q-5 18 1 25" stroke="#d39a7b" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        <path id="mouth" d="M192 326q14 8 28 0" stroke="#8a3b3b" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M120 226c-6-86 40-130 92-130 54 2 86 46 80 132-14-36-28-58-50-74-8 30-34 50-68 54 14-18 20-34 20-44-20 26-46 44-74 62Z" fill="url(#gHair)"/>
+        <path d="M124 222c-10 60-8 120 8 176 8-50 8-110 4-160Z" fill="#2c1f27"/>
+        <path d="M286 222c10 60 8 120-8 176-8-50-8-110-4-160Z" fill="#2c1f27"/>
+        <rect x="246" y="150" width="26" height="9" rx="4.5" fill="#72d5b7" transform="rotate(28 259 154)"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="choices" id="choices"></div>
+
+  <div class="dialog" id="dialog" role="button" tabindex="0" aria-label="Avanzar diálogo">
+    <div class="nametag" id="nametag">Ada<small>Auditora líder</small></div>
+    <div class="dlg-text" id="dlgText"></div>
+    <div class="next-ind" id="nextInd">clic · espacio · →</div>
+    <div class="dlg-ctrl">
+      <button id="btnBack" title="Anterior (←)">◀ Atrás</button>
+      <button id="btnAuto" title="Avance automático (A)">Auto</button>
+      <button id="btnSkip" title="Siguiente capítulo">Saltar ▶▶</button>
+    </div>
+  </div>
+
+  <section class="ask" id="ask" aria-label="Pregúntale a Ada">
+    <div class="ask-head">
+      <h3>Pregúntale a Ada</h3>
+      <span class="src" id="askSrc">expediente local</span>
+      <button class="x" id="askClose" title="Volver a la historia (Esc)">✕</button>
+    </div>
+    <div class="chat" id="chat"></div>
+    <div class="chips" id="chips"></div>
+    <div class="mic-state" id="micState"></div>
+    <form class="ask-bar" id="askForm" autocomplete="off">
+      <button type="button" class="mic-btn" id="micBtn" title="Hablar con el micrófono"><span class="lvl" id="micLvl"></span><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 1 0-7 0v6A3.5 3.5 0 0 0 12 15Zm6-3.6a1 1 0 1 0-2 0 4 4 0 0 1-8 0 1 1 0 1 0-2 0 6 6 0 0 0 5 5.9V20H8.5a1 1 0 1 0 0 2h7a1 1 0 1 0 0-2H13v-2.7a6 6 0 0 0 5-5.9Z"/></svg></button>
+      <input id="askInput" placeholder="Escribe o pulsa el micrófono y pregunta…" aria-label="Pregunta para Ada">
+      <button class="send-btn" type="submit">Enviar</button>
+    </form>
+  </section>
+</div>
+
+<div class="screen title-screen show" id="titleScreen">
+  <div class="title-inner">
+    <div class="tag">Auditoría de sistemas · novela interactiva</div>
+    <h1>Expediente <em>SIGMA-F</em></h1>
+    <p>Acompaña a Ada, auditora de sistemas, a revisar el Sistema Inteligente de Gestión y Monitoreo de Fraude Digital: planeación, pruebas, hallazgos, matriz de riesgos y dictamen.</p>
+    <div class="menu">
+      <button class="primary" id="mStart">▶ Comenzar la auditoría <kbd>Enter</kbd></button>
+      <button id="mChapters">☰ Elegir capítulo <kbd>C</kbd></button>
+      <button id="mExplain">📘 Explicación del proyecto <kbd>E</kbd></button>
+      <button id="mAsk">🎤 Pregúntale a Ada <kbd>M</kbd></button>
+      <button id="mLive">↗ Abrir SIGMA-F en vivo</button>
+    </div>
+    <div class="title-note" id="titleNote">Para que Ada hable y escuche, usa Chrome o Edge y permite el micrófono cuando el navegador lo pida.</div>
+  </div>
+</div>
+
+<div class="chap-intro" id="chapIntro"><div class="n" id="ciNum"></div><h2 id="ciTitle"></h2><div class="line"></div></div>
+
+<div class="overlay" id="chaptersOv">
+  <div class="sheet"><div class="sheet-head"><h2>Capítulos</h2><button class="x" data-close>✕</button></div><div class="chap-list" id="chapList"></div></div>
+</div>
+<div class="overlay" id="evidenceOv">
+  <div class="sheet"><div class="sheet-head"><h2>Evidencias del expediente</h2><button class="x" data-close>✕</button></div><div class="ev-list" id="evList"></div></div>
+</div>
+<div class="overlay" id="explainOv">
+  <div class="sheet">
+    <div class="sheet-head"><h2>Explicación del proyecto</h2><button class="x" data-close>✕</button></div>
+    <div class="tabs" id="explainTabs"></div>
+    <div class="sheet-body" id="explainBody"></div>
+  </div>
+</div>
+<div class="screen title-screen" id="finalScreen">
+  <div class="final-box">
+    <div class="tag" style="font-family:var(--font-data);color:var(--amber);letter-spacing:.16em;text-transform:uppercase;font-size:.78rem">Auditoría terminada</div>
+    <h1 id="finalRank">Auditor líder</h1>
+    <div class="score-row">
+      <div><b id="fXp">0</b><span>puntos de auditor</span></div>
+      <div><b id="fHits">0/0</b><span>respuestas correctas</span></div>
+      <div><b id="fEv">0</b><span>evidencias</span></div>
+    </div>
+    <div class="menu">
+      <button class="primary" id="fAsk">🎤 Pregúntale a Ada</button>
+      <button id="fExplain">📘 Ver la explicación completa</button>
+      <button id="fRestart">↺ Volver a empezar</button>
+    </div>
+  </div>
+</div>
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+(function () {
+"use strict";
+
+/* =====================================================================
+   1. DATOS DEL EXPEDIENTE (una sola fuente para historia, explicación y avatar)
+   ===================================================================== */
+var CRITERIA = [
+  ["ISO 19011:2018", "Directrices para auditar sistemas de gestión: programa, planeación, ejecución, informe y seguimiento."],
+  ["ISO/IEC 27001:2022 y 27002:2022", "Sistema de gestión de seguridad de la información y su catálogo de 93 controles."],
+  ["COBIT 2019", "Gobierno y gestión de TI: dominios EDM, APO, BAI, DSS y MEA."],
+  ["OWASP Top 10 (2021) y Top 10 para LLM (2025)", "Riesgos más críticos de aplicaciones web y de aplicaciones que usan modelos de IA."],
+  ["NIST CSF 2.0", "Funciones Gobernar, Identificar, Proteger, Detectar, Responder y Recuperar."],
+  ["Ley 1581 de 2012", "Protección de datos personales (habeas data) en Colombia: autorización, finalidad, transferencia."],
+  ["Ley 1273 de 2009", "Delitos informáticos: protege la información y los datos; limita lo que el auditor puede probar."]
+];
+
+var CONTROLS = [
+  { id: "E-01", t: "Clave de IA solo en el servidor", ev: "server.mjs lee .env.local al iniciar (líneas 22–34). La clave nunca se escribe en index.html; el navegador habla con el servidor local.", crit: "ISO/IEC 27002 · 5.17 Información de autenticación", tipo: "Preventivo", res: "Efectivo" },
+  { id: "E-02", t: "Servidor aislado en 127.0.0.1", ev: "server.listen(PORT, \"127.0.0.1\") (línea 592). Otro equipo de la red no puede conectarse.", crit: "ISO/IEC 27002 · 8.20 Seguridad de redes", tipo: "Preventivo", res: "Efectivo" },
+  { id: "E-03", t: "Protección contra SSRF", ev: "ensurePublicUrl (línea 199): bloquea IP privadas, localhost, puertos distintos de 80/443 y URL con credenciales; resuelve DNS y revalida cada redirección (máx. 4 saltos). Probado en vivo.", crit: "OWASP A10:2021 · Server-Side Request Forgery", tipo: "Preventivo", res: "Efectivo" },
+  { id: "E-04", t: "Bloqueo de path traversal", ev: "serveStatic normaliza la ruta y exige que quede dentro de dist (línea 507). GET /../.env.local respondió 404.", crit: "OWASP A01:2021 · Control de acceso roto", tipo: "Preventivo", res: "Efectivo" },
+  { id: "E-05", t: "Límites de capacidad y tiempo", ev: "Cuerpo máx. 18 MB, 8 s y 900 KB por enlace, 65 s para la IA (líneas 12–20, 327). Un envío de 19 MB fue cortado.", crit: "ISO/IEC 27002 · 8.6 Gestión de la capacidad", tipo: "Preventivo", res: "Efectivo" },
+  { id: "E-06", t: "Defensas del agente de IA", ev: "El contenido remoto se declara no confiable (línea 414); la respuesta se valida y normaliza (normalizeResult) y, si falla, se conserva el análisis local.", crit: "OWASP LLM01 Inyección de prompt · LLM05 Manejo de salidas · LLM09 Desinformación", tipo: "Preventivo / correctivo", res: "Efectivo" },
+  { id: "E-07", t: "HTTPS obligatorio y confirmación al borrar", ev: "El endpoint del proveedor debe ser HTTPS; HTTP solo en localhost (línea 98). Eliminar registros pide confirmación.", crit: "ISO/IEC 27002 · 8.24 Uso de criptografía · integridad", tipo: "Preventivo", res: "Efectivo" }
+];
+
+var FINDINGS = [
+  { id: "H-01", t: "CORS abierto en la API local", p: 2, i: 2, cond: "Todas las respuestas de /api/* envían Access-Control-Allow-Origin: * (server.mjs líneas 41 y 537). Verificado con una petición desde un origen externo.", crit: "OWASP A05:2021 Configuración de seguridad incorrecta · ISO/IEC 27002 8.9 Gestión de la configuración.", causa: "Configuración amplia para facilitar el desarrollo.", efecto: "Una página web abierta en el mismo equipo puede invocar /api/verify y consumir la clave de IA configurada, o usar el lector de enlaces.", rec: "Permitir solo el origen http://127.0.0.1:4174, validar el encabezado Origin y exigir un token de sesión." },
+  { id: "H-02", t: "Dependencia de CDN sin versión fija ni SRI", p: 1, i: 3, cond: "Tesseract.js se carga desde cdn.jsdelivr.net con versión abierta (@5) y sin atributo integrity (index.html línea 12).", crit: "OWASP A06:2021 Componentes vulnerables · A08:2021 Fallas de integridad de software.", causa: "Comodidad de usar la última versión del CDN.", efecto: "Si el CDN o el paquete se comprometen, código ajeno se ejecutaría con acceso a las capturas y textos de evidencia.", rec: "Fijar la versión exacta y agregar SRI (integrity + crossorigin) o servir la librería desde dist." },
+  { id: "H-03", t: "Opción de guardar la clave en localStorage", p: 1, i: 2, cond: "Si el usuario marca \"Recordar la clave\", se guarda en localStorage (index.html línea 1010). Es opcional y advierte el riesgo.", crit: "ISO/IEC 27002 5.17 Información de autenticación.", causa: "Comodidad para no pegar la clave en cada sesión.", efecto: "Un script malicioso (XSS) o alguien con acceso al equipo podría leer la clave.", rec: "Eliminar la opción y usar solo .env.local en el servidor." },
+  { id: "H-04", t: "Sin bitácora de auditoría", p: 2, i: 2, cond: "El servidor solo imprime dos mensajes al iniciar. No registra qué solicitudes se hicieron, cuándo ni qué se envió al proveedor.", crit: "ISO/IEC 27002 8.15 Registro de eventos · COBIT 2019 DSS05 y MEA01.", causa: "Prototipo enfocado en la funcionalidad.", efecto: "No hay trazabilidad ni rendición de cuentas ante un uso indebido o un reclamo sobre datos.", rec: "Bitácora local sin datos sensibles: fecha, ruta, tamaño, proveedor, resultado y código de error." },
+  { id: "H-05", t: "Datos personales enviados a un tercero", p: 2, i: 2, cond: "Capturas y textos pueden contener nombres, teléfonos o cuentas, y se envían a un proveedor de IA en el exterior cuando el usuario activa el análisis remoto (casilla opcional).", crit: "Ley 1581 de 2012 (autorización, finalidad, art. 26 transferencia internacional) · OWASP LLM02.", causa: "No existe un aviso de privacidad formal ni registro de la autorización.", efecto: "Incumplimiento de habeas data y exposición de datos de terceros.", rec: "Aviso de privacidad, registro del consentimiento y opción para ocultar datos antes de enviar." },
+  { id: "H-06", t: "Clave real dentro de la carpeta del proyecto", p: 2, i: 3, cond: "El archivo .env.local con una clave real de DeepSeek está en la misma carpeta que se comparte como proyecto (Descargas/SIGMA-F-local).", crit: "ISO/IEC 27002 5.17 Información de autenticación · 8.4 Acceso al código fuente.", causa: "La carpeta de trabajo y la de distribución son la misma.", efecto: "Al comprimir y compartir el proyecto, la clave se filtra y cualquiera puede usarla a costa del dueño.", rec: "Distribuir solo .env.example, excluir .env.local, y rotar la clave si la carpeta ya se compartió." },
+  { id: "H-07", t: "Sin límite de peticiones", p: 1, i: 2, cond: "No hay control de cantidad de solicitudes por minuto en /api/verify ni /api/inspect-links.", crit: "OWASP LLM10:2025 Consumo ilimitado · ISO/IEC 27002 8.6.", causa: "Uso local previsto para una sola persona.", efecto: "Un abuso (por ejemplo vía H-01) puede disparar el costo del proveedor de IA.", rec: "Limitar a N solicitudes por minuto y mostrar el consumo." },
+  { id: "H-08", t: "Ventana de DNS rebinding", p: 1, i: 2, cond: "El dominio se resuelve y valida con dns.lookup (línea 208), pero fetch vuelve a resolverlo al conectarse.", crit: "OWASP A10:2021 SSRF (variante TOCTOU).", causa: "La IP validada no se fija para la conexión.", efecto: "Un atacante con control de su DNS podría cambiar la IP entre la validación y la conexión. El riesgo se reduce porque solo se permiten los puertos 80 y 443.", rec: "Conectar a la IP ya validada (lookup personalizado o agente HTTP propio)." }
+];
+FINDINGS.forEach(function (f) { var s = f.p * f.i; f.score = s; f.level = s >= 6 ? "Alto" : (s >= 3 ? "Medio" : "Bajo"); });
+
+var TESTS = [
+  ["Enlace a IP privada http://192.168.1.1/admin", "Bloquear", "\"El destino local o privado está bloqueado.\"", "Cumple"],
+  ["Enlace al propio servidor http://127.0.0.1:4174/", "Bloquear", "\"El puerto del enlace no está permitido.\"", "Cumple"],
+  ["URL con credenciales http://user:pass@example.com", "Bloquear", "\"El enlace contiene credenciales y no se abrirá.\"", "Cumple"],
+  ["Puerto no estándar http://example.com:8080/", "Bloquear", "\"El puerto del enlace no está permitido.\"", "Cumple"],
+  ["Path traversal GET /../.env.local", "No entregar el archivo", "HTTP 404", "Cumple"],
+  ["Cuerpo de 19 MB a /api/verify", "Rechazar (> 18 MB)", "Conexión cortada por el servidor", "Cumple"],
+  ["Origen externo en /api/health", "Rechazar origen ajeno", "Access-Control-Allow-Origin: *", "No cumple → H-01"]
+];
+
+var HOSTING = {
+  url: "https://sigmaf.example.com",
+  supuestos: [
+    "SIGMA-F publicado en un hosting en la nube (PaaS o VPS) con dominio propio, por ejemplo https://sigmaf.example.com (escenario simulado).",
+    "Node.js corre detrás de un proxy inverso con HTTPS; la clave de IA se guarda en las variables secretas del hosting.",
+    "Cualquier persona en internet puede abrir la página y usar el agente de verificación.",
+    "El código vive en un repositorio Git y se despliega automáticamente a producción."
+  ],
+  cambios: [
+    ["E-02 · servidor en 127.0.0.1", "Deja de aplicar: el servidor queda expuesto a internet. Se reemplaza por HTTPS, proxy inverso y firewall."],
+    ["H-01 · CORS abierto", "Sube de Medio a Alto: cualquier sitio puede usar la API pública."],
+    ["H-07 · sin límite de peticiones", "Sube de Bajo a Alto: bots pueden agotar el presupuesto del proveedor de IA."],
+    ["H-06 · clave en la carpeta", "Se vuelve fuga en el repositorio: la clave nunca debe subirse a Git."],
+    ["Nuevo · sin autenticación", "Sin cuentas ni sesión, no hay forma de saber quién usa el sistema ni de bloquear abusos."]
+  ]
+};
+var PLAN = [
+  { fase: "Antes de publicar", cuando: "20–31 oct 2026", accion: "Mover la clave de IA a las variables secretas del hosting, rotar la clave actual y bloquear .env en .gitignore con escaneo de secretos.", h: "H-06", resp: "Desarrollador backend", ind: "0 secretos en el repositorio (escaneo gitleaks)" },
+  { fase: "Antes de publicar", cuando: "20–31 oct 2026", accion: "HTTPS obligatorio con certificado automático, HSTS y redirección de HTTP a HTTPS; Node escucha solo detrás del proxy inverso.", h: "E-02", resp: "Administrador de infraestructura", ind: "Calificación A en SSL Labs" },
+  { fase: "Antes de publicar", cuando: "20–31 oct 2026", accion: "Restringir CORS al dominio oficial y validar el encabezado Origin en /api/*.", h: "H-01", resp: "Desarrollador backend", ind: "100 % de orígenes ajenos rechazados en prueba" },
+  { fase: "Antes de publicar", cuando: "20–31 oct 2026", accion: "Límite de peticiones por IP y por usuario, más tope de gasto mensual y alerta de presupuesto en el proveedor de IA.", h: "H-07", resp: "Administrador de infraestructura", ind: "Máx. 10 verificaciones/min por IP; alerta al 80 % del presupuesto" },
+  { fase: "Antes de publicar", cuando: "20–31 oct 2026", accion: "Autenticación de usuarios (inicio de sesión) o, como mínimo, token de sesión y CAPTCHA para usar el agente de IA.", h: "Nuevo", resp: "Desarrollador backend", ind: "0 llamadas al agente sin sesión válida" },
+  { fase: "Primer mes", cuando: "noviembre 2026", accion: "Fijar la versión de Tesseract.js con SRI o servirla desde el propio dominio, y agregar cabeceras de seguridad (CSP, X-Content-Type-Options, frame-ancestors).", h: "H-02", resp: "Desarrollador frontend", ind: "Todas las librerías externas con integrity; CSP activa" },
+  { fase: "Primer mes", cuando: "noviembre 2026", accion: "Bitácora centralizada en el hosting (fecha, usuario, ruta, resultado), sin datos personales, retenida 90 días y con alertas.", h: "H-04", resp: "Administrador de infraestructura", ind: "100 % de solicitudes /api registradas" },
+  { fase: "Primer mes", cuando: "noviembre 2026", accion: "Aviso de privacidad y política de tratamiento, registro del consentimiento, acuerdo con el proveedor de IA por la transferencia internacional y borrado de evidencias tras el análisis.", h: "H-05", resp: "Oficial de protección de datos", ind: "Aviso publicado; 100 % de envíos con consentimiento registrado" },
+  { fase: "Primer mes", cuando: "noviembre 2026", accion: "Eliminar la opción \"recordar la clave\": en hosting el usuario nunca pega claves.", h: "H-03", resp: "Desarrollador frontend", ind: "0 claves en localStorage" },
+  { fase: "Mejora continua", cuando: "diciembre 2026", accion: "Conectar a la IP ya validada y bloquear en el firewall de salida las redes privadas y la IP de metadatos de la nube 169.254.169.254.", h: "H-08", resp: "Administrador de infraestructura", ind: "Prueba de SSRF y DNS rebinding sin éxito" },
+  { fase: "Mejora continua", cuando: "diciembre 2026", accion: "Copias de seguridad, monitoreo de disponibilidad y protección WAF/anti-DDoS; plan de continuidad con RTO de 4 horas.", h: "Nuevo", resp: "Administrador de infraestructura", ind: "Disponibilidad ≥ 99,5 % mensual" },
+  { fase: "Mejora continua", cuando: "enero 2027", accion: "Escaneo de dependencias (npm audit / Dependabot), prueba de penetración autorizada y auditoría de seguimiento.", h: "Todos", resp: "Líder del proyecto", ind: "Hallazgos altos cerrados al 100 % en el seguimiento" }
+];
+
+var SCORING = [
+  ["Pide códigos, OTP o credenciales", 24], ["Pide dinero o transferencia", 24], ["Pide confirmar o validar información", 18],
+  ["Incluye enlace o dominio", 17], ["Presión de tiempo (hoy, bloqueo, urgente)", 17], ["Beneficio inesperado (premio, empleo)", 11], ["Menciona una entidad (banco, DIAN, Nequi)", 8]
+];
+
+/* =====================================================================
+   2. TARJETAS (diapositivas)
+   ===================================================================== */
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]; }); }
+function pill(level) { return '<span class="pill ' + level + '">' + level + '</span>'; }
+
+var CARDS = {
+  cover: function () { return '<div class="cover"><div class="kicker">Expediente N.º AS-2026-017 · Auditoría de sistemas</div><img src="sigma-f-mark.svg" alt=""><h2>Auditoría de sistemas al prototipo SIGMA-F</h2><p>Sistema Inteligente de Gestión y Monitoreo de Fraude Digital · versión 1.0.0 (local)</p><div class="meta"><span>Auditora: Ada</span><span>Enfoque: seguridad, confiabilidad y datos personales</span><span>Fecha: octubre de 2026</span></div><div class="stamp warn">Confidencial</div></div>'; },
+  queEs: function () { return '<div class="kicker">El sistema auditado</div><h2>¿Qué es SIGMA-F?</h2><div class="grid3"><div class="tile"><span class="n">PROBLEMA</span><b>Fraude digital</b><span>Mensajes de WhatsApp, SMS y correo que suplantan bancos, entregas o empleos para robar códigos y dinero.</span></div><div class="tile"><span class="n">SOLUCIÓN</span><b>Verificación explicable</b><span>Analiza la evidencia y entrega un puntaje 0–100 con señales, hechos e incertidumbres.</span></div><div class="tile"><span class="n">USUARIO</span><b>Persona no técnica</b><span>Recibe rutas para actuar con calma y enlaces a CAI Virtual, ColCERT, Fiscalía y MinTIC.</span></div></div><h3>Módulos</h3><p>Resumen · Verificar evidencia · Tendencias · Registro de eventos (CSV) · Metodología · Configuración del agente.</p>'; },
+  flujo: function () { return '<div class="kicker">Cómo funciona</div><h2>Del dato a la decisión</h2><div class="steps"><div><b>Capturar</b>Captura, texto del mensaje, remitente y destino del enlace.</div><div><b>Normalizar</b>OCR local (Tesseract.js) y extracción de dominios y enlaces.</div><div><b>Clasificar</b>Reglas locales con pesos + modelo de IA opcional.</div><div><b>Prevenir</b>Puntaje, señales, siguiente paso y fuentes oficiales.</div></div><p style="margin-top:14px">La IA <b>no certifica identidad</b> ni reemplaza una denuncia: es apoyo para una decisión humana.</p>'; },
+  reglas: function () { return '<div class="kicker">Cómo se juega</div><h2>Tu papel: auditor asistente</h2><div class="grid2"><div class="tile"><b>⭐ Puntos de auditor</b><span>Responde las preguntas de Ada. Cada acierto suma XP.</span></div><div class="tile"><b>📁 Evidencias</b><span>Los controles y hallazgos se guardan en el expediente.</span></div><div class="tile"><b>🎤 Pregúntale a Ada</b><span>Pulsa el micrófono en cualquier momento y hazle una pregunta en voz alta.</span></div><div class="tile"><b>⌨ Controles</b><span>Espacio o → avanza · ← retrocede · A automático · V voz · E explicación.</span></div></div>'; },
+  definicion: function () { return '<div class="kicker">Marco conceptual</div><h2>¿Qué es la auditoría de sistemas?</h2><p>Es el <b>examen independiente y sistemático</b> de un sistema de información para emitir una <b>opinión</b> sobre si:</p><div class="grid2"><div class="tile"><b>Protege sus activos</b><span>Confidencialidad, integridad y disponibilidad de la información.</span></div><div class="tile"><b>Mantiene la integridad de los datos</b><span>Los resultados son exactos, completos y confiables.</span></div><div class="tile"><b>Cumple sus objetivos</b><span>Eficacia: hace lo que promete.</span></div><div class="tile"><b>Usa bien los recursos</b><span>Eficiencia y cumplimiento de normas y leyes.</span></div></div>'; },
+  criterios: function () { return '<div class="kicker">Criterios de auditoría</div><h2>¿Contra qué comparamos?</h2><table class="t"><tr><th>Norma o marco</th><th>Para qué lo usamos</th></tr>' + CRITERIA.map(function (c) { return '<tr><td><b>' + esc(c[0]) + '</b></td><td>' + esc(c[1]) + '</td></tr>'; }).join("") + '</table>'; },
+  fases: function () { return '<div class="kicker">Proceso</div><h2>Fases de la auditoría</h2><div class="steps"><div><b>Planeación</b>Objetivo, alcance, criterios, técnicas y riesgos.</div><div><b>Ejecución</b>Conocer el sistema, probar controles, recolectar evidencia.</div><div><b>Informe</b>Hallazgos (condición, criterio, causa, efecto) y dictamen.</div><div><b>Seguimiento</b>Verificar que el plan de mejora se cumpla.</div></div>'; },
+  tiposControl: function () { return '<div class="kicker">Control interno</div><h2>Tipos de control en SIGMA-F</h2><div class="grid3"><div class="tile"><span class="n">PREVENTIVO</span><b>Evita</b><span>Bloquear enlaces a redes privadas; la clave nunca llega al navegador.</span></div><div class="tile"><span class="n">DETECTIVO</span><b>Descubre</b><span>Puntaje de riesgo y señales: urgencia, pedido de códigos, dominios extraños.</span></div><div class="tile"><span class="n">CORRECTIVO</span><b>Repara</b><span>Rutas para actuar: contactar al banco y reportar en CAI Virtual; volver al análisis local si la IA falla.</span></div></div>'; },
+  planeacion: function () { return '<div class="kicker">Fase 1 · Planeación</div><h2>Objetivo y alcance</h2><h3>Objetivo</h3><p>Evaluar la <b>seguridad</b>, la <b>confiabilidad de los resultados</b> y el <b>cumplimiento en protección de datos</b> del prototipo SIGMA-F 1.0.0.</p><div class="grid2"><div class="tile"><span class="n">DENTRO DEL ALCANCE</span><span>server.mjs (Node.js ≥ 18) · dist/index.html (interfaz, OCR, reglas) · integración con el proveedor de IA · configuración .env.local</span></div><div class="tile"><span class="n">FUERA DEL ALCANCE</span><span>Infraestructura de DeepSeek · equipo del usuario · pruebas destructivas o contra terceros</span></div></div>'; },
+  tecnicas: function () { return '<div class="kicker">Fase 1 · Planeación</div><h2>Técnicas y riesgo de auditoría</h2><table class="t"><tr><th>Técnica</th><th>Evidencia que produce</th></tr><tr><td>Revisión de código fuente</td><td>Documental: líneas exactas de server.mjs e index.html</td></tr><tr><td>Inspección de configuración</td><td>Documental: .env.local, puertos, dependencias</td></tr><tr><td>Recorrido (walkthrough)</td><td>Observación del flujo captura → puntaje</td></tr><tr><td>Pruebas controladas en local</td><td>Prueba técnica reproducible con curl</td></tr></table><p style="margin-top:10px"><b>Riesgo de auditoría</b> = riesgo inherente × riesgo de control × riesgo de detección. Combinar técnicas baja el riesgo de detección.</p>'; },
+  arquitectura: function () {
+    return '<div class="kicker">Fase 2 · Conocer el sistema</div><h2>Arquitectura</h2>' +
+    '<svg class="arch" viewBox="0 0 760 300" font-family="DM Sans, sans-serif" font-size="13">' +
+    '<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#4a5a54"/></marker></defs>' +
+    '<rect x="10" y="40" width="200" height="200" rx="14" fill="#fff" stroke="#17231f" stroke-opacity=".25"/><text x="24" y="66" font-weight="700" font-size="15">Navegador</text><text x="24" y="90" fill="#4a5a54">index.html · dashboard</text><text x="24" y="112" fill="#4a5a54">OCR Tesseract.js (local)</text><text x="24" y="134" fill="#4a5a54">Reglas y puntaje 0–100</text><text x="24" y="156" fill="#4a5a54">Gráficas y CSV (sesión)</text><text x="24" y="222" fill="#8a6a2f" font-family="IBM Plex Mono" font-size="11">sin la clave de IA</text>' +
+    '<rect x="280" y="40" width="210" height="200" rx="14" fill="#17231f"/><text x="294" y="66" font-weight="700" font-size="15" fill="#f3ecdf">Servidor local Node</text><text x="294" y="88" fill="#d6a760" font-family="IBM Plex Mono" font-size="11">127.0.0.1:4174</text><text x="294" y="114" fill="#c9d8cf" font-family="IBM Plex Mono" font-size="11">GET  /api/health</text><text x="294" y="134" fill="#c9d8cf" font-family="IBM Plex Mono" font-size="11">POST /api/verify</text><text x="294" y="154" fill="#c9d8cf" font-family="IBM Plex Mono" font-size="11">POST /api/inspect-links</text><text x="294" y="174" fill="#c9d8cf" font-family="IBM Plex Mono" font-size="11">POST /api/provider/check</text><text x="294" y="222" fill="#72d5b7" font-family="IBM Plex Mono" font-size="11">lee .env.local (clave)</text>' +
+    '<rect x="560" y="30" width="190" height="96" rx="14" fill="#fff" stroke="#17231f" stroke-opacity=".25"/><text x="574" y="56" font-weight="700" font-size="15">Proveedor de IA</text><text x="574" y="80" fill="#4a5a54">DeepSeek · Chat</text><text x="574" y="100" fill="#4a5a54">Completions (HTTPS)</text>' +
+    '<rect x="560" y="150" width="190" height="96" rx="14" fill="#fff" stroke="#17231f" stroke-opacity=".25"/><text x="574" y="176" font-weight="700" font-size="15">Enlaces públicos</text><text x="574" y="200" fill="#4a5a54">lectura HTTP limitada</text><text x="574" y="220" fill="#4a5a54">sin ejecutar scripts</text>' +
+    '<path d="M212 140h64" stroke="#4a5a54" stroke-width="2" marker-end="url(#ar)"/><text x="218" y="132" fill="#4a5a54" font-size="11">evidencia</text>' +
+    '<path d="M492 100l64-20" stroke="#4a5a54" stroke-width="2" marker-end="url(#ar)"/><text x="500" y="80" fill="#4a5a54" font-size="11">si el usuario</text><text x="500" y="94" fill="#4a5a54" font-size="11">lo activa</text>' +
+    '<path d="M492 180l64 14" stroke="#4a5a54" stroke-width="2" marker-end="url(#ar)"/><text x="500" y="176" fill="#4a5a54" font-size="11">máx. 5</text>' +
+    '<text x="10" y="280" fill="#4a5a54" font-size="12">Fuentes oficiales sugeridas al usuario: CAI Virtual (Policía) · ColCERT · Fiscalía · MinTIC</text></svg>';
+  },
+  puntaje: function () { return '<div class="kicker">Fase 2 · Conocer el sistema</div><h2>Puntaje local explicable</h2><table class="t"><tr><th>Señal detectada en el texto</th><th>Puntos</th></tr>' + SCORING.map(function (s) { return '<tr><td>' + s[0] + '</td><td class="mono">+' + s[1] + '</td></tr>'; }).join("") + '</table><p style="margin-top:10px">Base 8 puntos · tope 98 · niveles: ' + pill("Alto") + ' ≥ 70 · ' + pill("Medio") + ' ≥ 40 · ' + pill("Bajo") + ' &lt; 40</p>'; },
+  sms: function () { return '<div class="kicker">Caso de práctica</div><h2>¿Qué nivel le da SIGMA-F?</h2><div class="sms">Tu cuenta del banco será bloqueada <b>HOY</b>. Confirma tu código en www.banco-seguro.co</div><p style="margin-top:14px;color:#4a5a54">Usa la tabla de puntaje: base 8 + cada señal encontrada.</p>'; },
+  smsSol: function () { return '<div class="kicker">Caso de práctica · solución</div><h2>8 + 24 + 18 + 17 + 17 + 8 = 92</h2><table class="t"><tr><td>Base</td><td class="mono">8</td></tr><tr><td>"código" → pide códigos o credenciales</td><td class="mono">+24</td></tr><tr><td>"Confirma tu código" → pide confirmar información</td><td class="mono">+18</td></tr><tr><td>"www." → incluye enlace</td><td class="mono">+17</td></tr><tr><td>"HOY", "bloqueada" → presión de tiempo</td><td class="mono">+17</td></tr><tr><td>"banco" → menciona una entidad</td><td class="mono">+8</td></tr></table><p style="margin-top:10px">Resultado: ' + pill("Alto") + ' · "No continúes sin verificar".</p>'; },
+  control: function (id) { var c = CONTROLS.filter(function (x) { return x.id === id; })[0]; return '<div class="kicker">Evidencia ' + c.id + ' · control ' + c.tipo.toLowerCase() + '</div><h2>' + esc(c.t) + '</h2><div class="stamp ok">' + c.res + '</div><dl class="finding-attr"><dt>Evidencia</dt><dd>' + esc(c.ev) + '</dd><dt>Criterio</dt><dd>' + esc(c.crit) + '</dd><dt>Resultado</dt><dd>' + '<span class="pill ok">Control efectivo</span>' + '</dd></dl>'; },
+  pruebas: function () { return '<div class="kicker">Evidencia E-03 · prueba realizada</div><h2>Pruebas controladas en local</h2><table class="t"><tr><th>Prueba</th><th>Esperado</th><th>Obtenido</th><th></th></tr>' + TESTS.map(function (t) { return '<tr><td>' + esc(t[0]) + '</td><td>' + esc(t[1]) + '</td><td class="mono">' + esc(t[2]) + '</td><td>' + (t[3] === "Cumple" ? '<span class="pill ok">Cumple</span>' : '<span class="pill Medio">' + esc(t[3]) + '</span>') + '</td></tr>'; }).join("") + '</table><button class="demo-btn" data-demo="ssrf">▶ Repetir la prueba SSRF en vivo</button><div class="demo-out" id="demoOut"></div>'; },
+  hallazgoEstructura: function () { return '<div class="kicker">Fase 3 · Informe</div><h2>Anatomía de un hallazgo</h2><div class="grid2"><div class="tile"><span class="n">CONDICIÓN</span><b>Lo que es</b><span>La situación encontrada, con evidencia.</span></div><div class="tile"><span class="n">CRITERIO</span><b>Lo que debería ser</b><span>La norma, política o buena práctica.</span></div><div class="tile"><span class="n">CAUSA</span><b>Por qué pasa</b><span>El origen de la diferencia.</span></div><div class="tile"><span class="n">EFECTO</span><b>Qué puede pasar</b><span>El riesgo o impacto. Luego, la recomendación.</span></div></div>'; },
+  hallazgo: function (id) { var f = FINDINGS.filter(function (x) { return x.id === id; })[0]; return '<div class="kicker">Hallazgo ' + f.id + ' · probabilidad ' + f.p + ' × impacto ' + f.i + '</div><h2>' + esc(f.t) + '</h2><div class="stamp ' + (f.level === "Alto" ? "bad" : "warn") + '">' + f.level + '</div><dl class="finding-attr"><dt>Condición</dt><dd>' + esc(f.cond) + '</dd><dt>Criterio</dt><dd>' + esc(f.crit) + '</dd><dt>Causa</dt><dd>' + esc(f.causa) + '</dd><dt>Efecto</dt><dd>' + esc(f.efecto) + '</dd><dt>Recomendación</dt><dd>' + esc(f.rec) + '</dd></dl>'; },
+  matriz: function () {
+    var html = '<div class="kicker">Evaluación de riesgos</div><h2>Matriz probabilidad × impacto</h2><div class="matrix">';
+    for (var p = 3; p >= 1; p--) {
+      html += '<div class="ax v">' + ["", "Baja", "Media", "Alta"][p] + '</div>';
+      for (var i = 1; i <= 3; i++) {
+        var s = p * i, lv = s >= 6 ? 3 : (s >= 3 ? 2 : 1);
+        html += '<div class="cell lv' + lv + '">' + FINDINGS.filter(function (f) { return f.p === p && f.i === i; }).map(function (f) { return '<span class="chip" title="' + esc(f.t) + '">' + f.id + '</span>'; }).join("") + '</div>';
+      }
+    }
+    html += '<div></div><div class="ax">Impacto bajo</div><div class="ax">Impacto medio</div><div class="ax">Impacto alto</div></div>';
+    var c = { Alto: 0, Medio: 0, Bajo: 0 }; FINDINGS.forEach(function (f) { c[f.level]++; });
+    return html + '<p style="margin-top:10px">Eje vertical: probabilidad. Resultado: ' + pill("Alto") + ' ' + c.Alto + ' · ' + pill("Medio") + ' ' + c.Medio + ' · ' + pill("Bajo") + ' ' + c.Bajo + '</p>';
+  },
+  hosting: function () { return '<div class="kicker">Escenario del plan de acción</div><h2>¿Y si SIGMA-F estuviera en hosting?</h2><div class="stamp warn">Simulado</div><h3>Supuestos</h3><ul>' + HOSTING.supuestos.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join("") + '</ul><h3>Qué cambia al publicarlo en internet</h3><table class="t">' + HOSTING.cambios.map(function (c) { return '<tr><td><b>' + esc(c[0]) + '</b></td><td>' + esc(c[1]) + '</td></tr>'; }).join("") + '</table>'; },
+  plan: function (fase) {
+    var rows = PLAN.filter(function (r) { return !fase || r.fase === fase; });
+    var when = fase ? rows.map(function (r) { return r.cuando; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).join(" / ") : "";
+    return '<div class="kicker">Plan de acción · SIGMA-F en hosting' + (fase ? ' · ' + esc(when) : '') + '</div><h2>' + (fase ? esc(fase) : 'Plan de acción completo') + '</h2><table class="t"><tr><th>Acción</th><th>Hallazgo</th><th>Responsable</th>' + (fase ? '' : '<th>Fecha</th>') + '<th>Indicador</th></tr>' + rows.map(function (r) { return '<tr><td>' + esc(r.accion) + '</td><td class="mono">' + r.h + '</td><td>' + esc(r.resp) + '</td>' + (fase ? '' : '<td>' + esc(r.cuando) + '</td>') + '<td>' + esc(r.ind) + '</td></tr>'; }).join("") + '</table>';
+  },
+  dictamen: function () { return '<div class="kicker">Fase 3 · Informe final</div><h2>Dictamen: favorable con salvedades</h2><div class="stamp warn">Con salvedades</div><p>Los controles críticos están <b>bien diseñados</b> y funcionaron en las pruebas: aislamiento en 127.0.0.1, protección SSRF, clave de IA solo en el servidor y validación de las respuestas del modelo.</p><h3>Salvedades</h3><ul><li>H-06 clave real dentro de la carpeta del proyecto (riesgo alto).</li><li>H-01 CORS abierto · H-02 dependencia sin SRI · H-04 sin bitácora · H-05 aviso de privacidad.</li></ul><h3>Limitaciones</h3><p>Prototipo académico con datos simulados; revisión de código y pruebas locales; no se probó con usuarios reales ni en producción; la infraestructura del proveedor quedó fuera del alcance.</p>'; }
+};
+
+/* =====================================================================
+   3. HISTORIA
+   ===================================================================== */
+var CHAPTERS = [
+  { title: "Prólogo · El expediente", scene: "oficina", desc: "Presentación de SIGMA-F y de Ada.", lines: [
+    { who: "narr", text: "Bogotá, 2026. Sala de auditoría de sistemas. Sobre la mesa hay un expediente con un nombre: SIGMA-F.", card: "cover" },
+    { who: "ada", expr: "happy", text: "¡Hola! Soy Ada, auditora de sistemas. Hoy vamos a auditar juntos un sistema real, línea por línea." },
+    { who: "ada", text: "SIGMA-F significa Sistema Inteligente de Gestión y Monitoreo de Fraude Digital. Ayuda a las personas a revisar un mensaje sospechoso antes de caer en una estafa.", card: "queEs" },
+    { who: "ada", text: "Recibe una captura, el texto y el remitente. Extrae el texto con OCR, aplica reglas locales y, si el usuario lo activa, consulta un modelo de IA.", card: "flujo" },
+    { who: "sigma", text: "Soy SIGMA-F. Entrego un puntaje de riesgo de 0 a 100, separo los hechos de las hipótesis y digo a qué fuente oficial acudir." },
+    { who: "ada", expr: "serious", text: "Pero un sistema que maneja evidencias de fraude también puede convertirse en un riesgo. Nuestra misión es comprobar si sus controles son suficientes." },
+    { who: "ada", expr: "happy", text: "Serás mi auditor asistente. Responde bien, junta evidencias y al final emitiremos el dictamen. Si tienes una duda, pulsa el micrófono y pregúntame.", card: "reglas" }
+  ]},
+  { title: "¿Qué es auditar un sistema?", scene: "archivo", desc: "Definición, criterios, fases y tipos de control.", lines: [
+    { who: "ada", text: "Empecemos por lo básico. La auditoría de sistemas es un examen independiente y sistemático de un sistema de información.", card: "definicion" },
+    { who: "ada", expr: "thinking", text: "Su fin es emitir una opinión: ¿el sistema protege sus activos, mantiene la integridad de los datos, cumple sus objetivos y usa bien sus recursos?" },
+    { who: "ada", text: "Para opinar no basta la intuición. Necesitamos criterios: normas contra las que comparamos lo que encontramos.", card: "criterios" },
+    { who: "ada", text: "Pregunta rápida.", choice: { q: "¿Cuál es la guía para realizar auditorías de sistemas de gestión?", options: [
+      { t: "ISO 19011:2018", ok: true, fb: "Exacto. ISO 19011 orienta cómo planear, ejecutar e informar una auditoría." },
+      { t: "OWASP Top 10", fb: "OWASP Top 10 lista riesgos de aplicaciones web. Es un criterio técnico, no una guía para auditar." },
+      { t: "Ley 1273 de 2009", fb: "La Ley 1273 tipifica los delitos informáticos en Colombia. Nos dice qué no hacer, no cómo auditar. La respuesta es ISO 19011." }
+    ]}},
+    { who: "ada", text: "Toda auditoría sigue fases: planeación, ejecución con pruebas y evidencias, informe con hallazgos y, al final, seguimiento.", card: "fases" },
+    { who: "ada", text: "Y recuerda los tipos de control: los preventivos evitan el problema, los detectivos lo descubren y los correctivos lo reparan. Los buscaremos en SIGMA-F.", card: "tiposControl" }
+  ]},
+  { title: "Planeación", scene: "oficina", desc: "Objetivo, alcance, técnicas y riesgo de auditoría.", lines: [
+    { who: "ada", text: "Fase uno: planeación. El objetivo es evaluar la seguridad, la confiabilidad de los resultados y el cumplimiento en protección de datos de SIGMA-F versión 1.0.0.", card: "planeacion" },
+    { who: "ada", text: "El alcance incluye el servidor local, la interfaz con su OCR y sus reglas, la integración con la IA y la configuración. La infraestructura de DeepSeek queda fuera." },
+    { who: "ada", text: "Usaremos revisión de código, inspección de configuración, un recorrido del flujo y pruebas controladas en el servidor local.", card: "tecnicas" },
+    { who: "ada", expr: "thinking", text: "Ahora decide tú.", choice: { q: "Debemos comprobar que SIGMA-F bloquea enlaces a redes privadas. ¿Qué evidencia es más sólida?", options: [
+      { t: "Revisar el código y hacer una prueba controlada en local", ok: true, fb: "Correcto. Evidencia documental más evidencia de prueba: es reproducible y suficiente." },
+      { t: "Preguntarle al desarrollador y anotar su respuesta", fb: "Eso es evidencia testimonial. Sirve, pero es la más débil si no se corrobora con pruebas." },
+      { t: "Lanzar un ataque contra los servidores de DeepSeek", fb: "¡No! Está fuera del alcance y podría ser delito según la Ley 1273 de 2009. Lo correcto es probar en local." }
+    ]}},
+    { who: "ada", expr: "serious", text: "Un detalle profesional: también cuidamos el riesgo de auditoría, es decir, la posibilidad de emitir una opinión equivocada. Por eso combinamos varias técnicas." }
+  ]},
+  { title: "Conociendo el sistema", scene: "red", desc: "Arquitectura, rutas del servidor y puntaje de riesgo.", lines: [
+    { who: "ada", text: "Fase dos: ejecución. Antes de probar, debemos entender la arquitectura.", card: "arquitectura" },
+    { who: "sigma", text: "Mi interfaz corre en el navegador. El OCR con Tesseract.js lee las capturas allí mismo, sin enviarlas a ningún servidor." },
+    { who: "sigma", text: "Mi servidor Node.js escucha solo en 127.0.0.1, puerto 4174, y expone cuatro rutas: health, verify, inspect-links y provider check." },
+    { who: "sigma", text: "Si el usuario lo autoriza, envío la evidencia a un proveedor de IA compatible con Chat Completions. Por defecto, DeepSeek." },
+    { who: "ada", text: "Y el puntaje local es explicable: cada señal suma puntos. Pedir códigos o dinero suma 24; un enlace o la urgencia, 17.", card: "puntaje" },
+    { who: "ada", expr: "happy", text: "Pongámoslo a prueba.", card: "sms", choice: { q: "¿Qué nivel de riesgo le da SIGMA-F a este SMS?", options: [
+      { t: "Alto", ok: true, fb: "¡Bien! 8 de base, más código, confirmación, enlace, urgencia y entidad: 92 puntos. Riesgo alto." },
+      { t: "Medio", fb: "Suma otra vez: 8 de base, más 24, 18, 17, 17 y 8. Son 92 puntos: riesgo alto." },
+      { t: "Bajo", fb: "Tiene casi todas las señales: código, urgencia, enlace y entidad. Son 92 puntos: riesgo alto." }
+    ]}},
+    { who: "ada", text: "Así se ve el cálculo completo. Ya conocemos el sistema; ahora, a buscar evidencias.", card: "smsSol" }
+  ]},
+  { title: "Pruebas de controles", scene: "servidor", desc: "Siete controles comprobados con evidencia.", lines: [
+    { who: "ada", text: "Revisemos qué controles existen y si funcionan. Cada control comprobado es una evidencia para el informe." },
+    { who: "ada", text: "Evidencia uno: la clave de la API vive en .env.local y solo la lee el servidor. Nunca se escribe en index.html.", card: ["control", "E-01"], evidence: "E-01" },
+    { who: "ada", text: "Evidencia dos: el servidor escucha únicamente en 127.0.0.1. Desde otro equipo de la red no se puede llegar a él.", card: ["control", "E-02"], evidence: "E-02" },
+    { who: "ada", expr: "happy", text: "Evidencia tres, mi favorita: protección contra SSRF, la falsificación de solicitudes del lado del servidor. Hicimos la prueba y SIGMA-F se negó a abrir enlaces peligrosos.", card: "pruebas", evidence: "E-03" },
+    { who: "sigma", text: "Bloqueo IP privadas, localhost, puertos distintos de 80 y 443 y enlaces con usuario y contraseña. Y vuelvo a validar cada redirección, hasta cuatro saltos." },
+    { who: "ada", text: "Evidencia cuatro: el servidor impide salir de la carpeta dist. Pedimos el archivo .env.local con dos puntos y barra, y respondió 404.", card: ["control", "E-04"], evidence: "E-04" },
+    { who: "ada", text: "Evidencia cinco: límites de capacidad. Máximo 18 megas por solicitud y tiempos límite. Enviamos 19 megas y el servidor cortó la conexión.", card: ["control", "E-05"], evidence: "E-05" },
+    { who: "ada", text: "Evidencia seis: defensas para la IA. El contenido remoto se trata como no confiable, la respuesta se valida y, si falla, se conserva el análisis local.", card: ["control", "E-06"], evidence: "E-06" },
+    { who: "ada", text: "Evidencia siete: el proveedor de IA debe usar HTTPS y borrar registros pide confirmación.", card: ["control", "E-07"], evidence: "E-07" },
+    { who: "ada", expr: "thinking", text: "Comprobemos si prestaste atención.", choice: { q: "Un mensaje trae el enlace http://192.168.1.1/admin. ¿Qué hace SIGMA-F?", options: [
+      { t: "Lo bloquea: apunta a una red privada", ok: true, fb: "Exacto. La respuesta real del servidor fue: el destino local o privado está bloqueado." },
+      { t: "Lo abre y muestra su contenido", fb: "No. Abrirlo permitiría espiar la red interna: eso es SSRF. SIGMA-F lo bloquea." },
+      { t: "Se lo envía a DeepSeek para que lo abra", fb: "El proveedor de IA no abre enlaces. El servidor los lee con reglas estrictas y este lo bloquea." }
+    ]}}
+  ]},
+  { title: "Hallazgos", scene: "alerta", desc: "Ocho hallazgos con condición, criterio, causa y efecto.", lines: [
+    { who: "ada", expr: "serious", text: "Ahora la parte incómoda: los hallazgos. Cada uno tiene cuatro atributos: condición, criterio, causa y efecto.", card: "hallazgoEstructura" },
+    { who: "ada", expr: "serious", text: "Hallazgo uno: la API responde con CORS abierto, el asterisco. Una página web abierta en el mismo equipo podría usar el servidor y gastar la clave de IA.", card: ["hallazgo", "H-01"], evidence: "H-01" },
+    { who: "ada", text: "Tú lo clasificas.", choice: { q: "Probabilidad media, impacto medio. ¿Qué nivel tiene el hallazgo H-01?", options: [
+      { t: "Medio", ok: true, fb: "Correcto: dos por dos da cuatro, riesgo medio. Requiere que la víctima visite una página maliciosa con el servidor encendido." },
+      { t: "Alto", fb: "Casi. Dos por dos da cuatro: es medio. Exige que la víctima visite una página maliciosa mientras el servidor está encendido." },
+      { t: "Bajo", fb: "Es más que bajo: dos por dos da cuatro, riesgo medio, porque permite gastar la clave del dueño." }
+    ]}},
+    { who: "ada", text: "Hallazgo dos: Tesseract.js se carga desde un CDN con versión abierta y sin verificación de integridad SRI. Si el CDN se compromete, ese código vería las evidencias.", card: ["hallazgo", "H-02"], evidence: "H-02" },
+    { who: "ada", text: "Hallazgo tres: la opción recordar la clave la guarda en localStorage. Es opcional y advierte el riesgo, pero un script malicioso podría leerla.", card: ["hallazgo", "H-03"], evidence: "H-03" },
+    { who: "ada", expr: "serious", text: "Hallazgo cuatro: no hay bitácora de auditoría. El servidor no registra quién consultó, cuándo ni qué se envió al proveedor. Sin trazabilidad no hay rendición de cuentas.", card: ["hallazgo", "H-04"], evidence: "H-04" },
+    { who: "ada", text: "Hallazgo cinco: las capturas pueden tener datos personales y se envían a un proveedor en el exterior. Hay una casilla de consentimiento, pero falta un aviso de privacidad formal según la Ley 1581.", card: ["hallazgo", "H-05"], evidence: "H-05" },
+    { who: "ada", expr: "surprised", text: "Hallazgo seis, el más grave: el archivo .env.local con la clave real está dentro de la carpeta del proyecto. Si alguien comparte la carpeta comprimida, la clave se filtra.", card: ["hallazgo", "H-06"], evidence: "H-06" },
+    { who: "ada", expr: "serious", text: "Clasifícalo.", choice: { q: "Probabilidad media, impacto alto. ¿Qué nivel tiene el hallazgo H-06?", options: [
+      { t: "Alto", ok: true, fb: "Sí. Dos por tres da seis: riesgo alto. Compartir el proyecto en un zip es muy común entre estudiantes." },
+      { t: "Medio", fb: "Dos por tres da seis: es alto. Una clave filtrada da control total de la cuenta del proveedor." },
+      { t: "Bajo", fb: "Nada de bajo: dos por tres da seis, riesgo alto. Es el hallazgo más grave del informe." }
+    ]}},
+    { who: "ada", text: "Hallazgo siete: no hay límite de peticiones por minuto. Un abuso podría disparar el consumo del proveedor de IA.", card: ["hallazgo", "H-07"], evidence: "H-07" },
+    { who: "ada", expr: "thinking", text: "Y el hallazgo ocho, muy técnico: el dominio se valida con DNS y se vuelve a resolver al conectarse. Un ataque de DNS rebinding podría colarse en ese instante.", card: ["hallazgo", "H-08"], evidence: "H-08" },
+    { who: "ada", text: "Último.", choice: { q: "Probabilidad baja, impacto medio. ¿Qué nivel tiene el hallazgo H-08?", options: [
+      { t: "Bajo", ok: true, fb: "Correcto: uno por dos da dos, riesgo bajo. Requiere controlar un DNS y un tiempo muy preciso, y solo se permiten los puertos 80 y 443." },
+      { t: "Medio", fb: "Uno por dos da dos: es bajo. Exige un atacante sofisticado y los puertos están limitados." },
+      { t: "Alto", fb: "Suena aterrador, pero uno por dos da dos: riesgo bajo." }
+    ]}}
+  ]},
+  { title: "Matriz de riesgos y plan", scene: "juntas", desc: "Priorización y plan de acción con SIGMA-F en hosting.", lines: [
+    { who: "ada", text: "Llevemos los hallazgos a la matriz de probabilidad por impacto. Resultado: un riesgo alto, cuatro medios y tres bajos.", card: "matriz" },
+    { who: "ada", expr: "thinking", text: "Para el plan de acción imaginemos el escenario real: SIGMA-F publicado en un hosting en la nube, con dominio propio y abierto a cualquier persona en internet.", card: "hosting" },
+    { who: "ada", expr: "serious", text: "Eso cambia el panorama. El aislamiento en 127.0.0.1 deja de existir, y el CORS abierto y la falta de límite de peticiones pasan a riesgo alto. Además aparece un riesgo nuevo: no hay autenticación." },
+    { who: "ada", text: "Antes de publicar, del 20 al 31 de octubre: clave en las variables secretas del hosting y rotada, HTTPS con HSTS, CORS solo para el dominio oficial, límite de peticiones con tope de gasto y autenticación.", card: ["plan", "Antes de publicar"] },
+    { who: "ada", text: "En el primer mes: Tesseract con SRI y cabeceras de seguridad, bitácora centralizada sin datos personales, aviso de privacidad con consentimiento registrado y quitar la opción de recordar la clave.", card: ["plan", "Primer mes"] },
+    { who: "ada", text: "Y como mejora continua: firewall de salida contra redes privadas y metadatos de la nube, copias de seguridad, protección anti DDoS, escaneo de dependencias y una auditoría de seguimiento.", card: ["plan", "Mejora continua"] },
+    { who: "ada", text: "Cada acción tiene responsable, fecha e indicador. Sin indicador no podríamos comprobar en el seguimiento si el plan se cumplió." },
+    { who: "ada", expr: "thinking", text: "Prioriza.", choice: { q: "Con SIGMA-F en hosting, ¿qué se debe atender primero?", options: [
+      { t: "H-06 · clave real dentro de la carpeta", ok: true, fb: "Sí. En hosting una clave subida al repositorio queda expuesta: va primero, se rota y se guarda como secreto del hosting." },
+      { t: "H-08 · ventana de DNS rebinding", fb: "Es interesante, pero su riesgo es bajo. Primero va H-06, el único alto." },
+      { t: "H-03 · clave en localStorage", fb: "Es bajo y se resuelve en el primer mes. Primero va H-06: la clave del proveedor." }
+    ]}}
+  ]},
+  { title: "Dictamen", scene: "tribunal", desc: "Opinión final, salvedades y limitaciones.", lines: [
+    { who: "narr", text: "Llegó el momento. Ada toma el expediente y se pone de pie." },
+    { who: "ada", expr: "serious", text: "Con base en la evidencia, emitimos una opinión favorable con salvedades.", card: "dictamen" },
+    { who: "ada", text: "Los controles críticos están bien diseñados y funcionaron: aislamiento local, protección SSRF, clave solo en el servidor y validación de la IA." },
+    { who: "ada", text: "Las salvedades: la clave dentro de la carpeta, el CORS abierto, la dependencia sin SRI, la falta de bitácora y el aviso de privacidad." },
+    { who: "ada", expr: "thinking", text: "Limitaciones: es un prototipo académico con datos simulados; no se probó con usuarios reales ni en producción, y el proveedor de IA quedó fuera del alcance." },
+    { who: "ada", expr: "happy", text: "Gracias por acompañarme. Ahora pregúntame lo que quieras sobre SIGMA-F o sobre la auditoría.", end: true }
+  ]}
+];
+
+var FLAT = [];
+CHAPTERS.forEach(function (ch, ci) { ch.start = FLAT.length; ch.lines.forEach(function (l, li) { FLAT.push({ ci: ci, li: li, line: l }); }); });
+var TOTAL_EV = CONTROLS.length + FINDINGS.length;
+var TOTAL_Q = FLAT.filter(function (x) { return x.line.choice; }).length;
+
+/* =====================================================================
+   4. ESCENARIOS
+   ===================================================================== */
+function rng(seed) { return function () { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; }
+function svgWrap(inner, defs) { return '<svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"><defs>' + (defs || "") + '</defs>' + inner + '</svg>'; }
+var SCENES = {
+  oficina: function () {
+    var r = rng(7), s = '<rect width="1600" height="900" fill="url(#sky)"/>';
+    for (var x = 0; x < 1600; x += 70 + r() * 60) {
+      var w = 60 + r() * 90, h = 220 + r() * 420, y = 900 - h;
+      s += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#0c1c1f"/>';
+      for (var wy = y + 14; wy < 860; wy += 22) for (var wx = x + 8; wx < x + w - 10; wx += 16) if (r() > .72) s += '<rect x="' + wx + '" y="' + wy + '" width="8" height="10" fill="#d6a760" opacity="' + (.25 + r() * .5).toFixed(2) + '"/>';
+    }
+    s += '<g stroke="#050d0c" stroke-width="22"><path d="M0 120H1600M533 0V900M1066 0V900M0 520H1600"/></g><rect y="760" width="1600" height="140" fill="#081110"/><ellipse cx="300" cy="760" rx="380" ry="90" fill="#d6a760" opacity=".08"/>';
+    return svgWrap(s, '<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0e2a33"/><stop offset="1" stop-color="#132f2a"/></linearGradient>');
+  },
+  archivo: function () {
+    var r = rng(11), cols = ["#3a5a4f", "#6b4a2f", "#2f4a5a", "#7d5a2a", "#4a3a4f", "#5a2f2f"], s = '<rect width="1600" height="900" fill="#14201c"/>';
+    for (var y = 60; y < 900; y += 170) {
+      s += '<rect x="0" y="' + (y + 140) + '" width="1600" height="14" fill="#2a1f17"/>';
+      for (var x = 10; x < 1600; x += 0) { var w = 20 + r() * 26, h = 90 + r() * 45; s += '<rect x="' + x + '" y="' + (y + 140 - h) + '" width="' + w + '" height="' + h + '" rx="3" fill="' + cols[Math.floor(r() * cols.length)] + '" opacity=".85"/>'; x += w + 3 + (r() > .9 ? 40 : 0); }
+    }
+    s += '<rect width="1600" height="900" fill="url(#lamp)"/>';
+    return svgWrap(s, '<radialGradient id="lamp" cx="30%" cy="20%" r="80%"><stop offset="0" stop-color="#d6a760" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".55"/></radialGradient>');
+  },
+  red: function () {
+    var r = rng(23), pts = [], s = '<rect width="1600" height="900" fill="#071513"/>';
+    for (var i = 0; i < 46; i++) pts.push([r() * 1600, r() * 900]);
+    pts.forEach(function (a, i) { pts.slice(i + 1).forEach(function (b) { var d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (d < 260) s += '<line x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '" stroke="#72d5b7" stroke-opacity="' + (.25 - d / 1400).toFixed(2) + '"/>'; }); });
+    pts.forEach(function (a, i) { s += '<circle cx="' + a[0] + '" cy="' + a[1] + '" r="' + (3 + r() * 4) + '" fill="' + (i % 7 ? "#72d5b7" : "#d6a760") + '" class="' + (i % 4 ? "" : "pulse-node") + '" style="animation-delay:' + (r() * 3).toFixed(2) + 's"/>'; });
+    return svgWrap(s);
+  },
+  servidor: function () {
+    var r = rng(5), s = '<rect width="1600" height="900" fill="#08110f"/>';
+    for (var x = 30; x < 1600; x += 190) {
+      s += '<rect x="' + x + '" y="80" width="160" height="820" rx="6" fill="#0f1f1c" stroke="#1d3530"/>';
+      for (var y = 100; y < 880; y += 34) {
+        s += '<rect x="' + (x + 10) + '" y="' + y + '" width="140" height="26" rx="3" fill="#13261f"/>';
+        for (var k = 0; k < 3; k++) if (r() > .3) s += '<circle cx="' + (x + 120 + k * 9) + '" cy="' + (y + 13) + '" r="2.6" fill="' + (r() > .85 ? "#d6a760" : "#72d5b7") + '" class="blink-led" style="animation-delay:' + (r() * 1.6).toFixed(2) + 's"/>';
+      }
+    }
+    s += '<rect width="1600" height="900" fill="url(#cold)"/>';
+    return svgWrap(s, '<linearGradient id="cold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".5"/><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></linearGradient>');
+  },
+  alerta: function () {
+    var s = '<rect width="1600" height="900" fill="url(#red)"/>';
+    for (var y = 0; y < 900; y += 6) s += '<rect y="' + y + '" width="1600" height="1" fill="#000" opacity=".18"/>';
+    s += '<path d="M800 170 1060 640H540Z" fill="none" stroke="#d87866" stroke-width="18" opacity=".12"/><rect x="788" y="330" width="24" height="170" fill="#d87866" opacity=".12"/><rect x="788" y="530" width="24" height="26" fill="#d87866" opacity=".12"/><rect class="scan" y="0" width="1600" height="120" fill="url(#scanG)"/>';
+    return svgWrap(s, '<radialGradient id="red" cx="50%" cy="45%" r="75%"><stop offset="0" stop-color="#3a1714"/><stop offset="1" stop-color="#0b0706"/></radialGradient><linearGradient id="scanG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d87866" stop-opacity="0"/><stop offset="1" stop-color="#d87866" stop-opacity=".12"/></linearGradient>');
+  },
+  juntas: function () {
+    var s = '<rect width="1600" height="900" fill="url(#warm)"/><rect x="420" y="90" width="760" height="380" rx="14" fill="#0e1a17" stroke="#d6a760" stroke-opacity=".4" stroke-width="4"/>';
+    for (var p = 0; p < 3; p++) for (var i = 0; i < 3; i++) s += '<rect x="' + (470 + i * 230) + '" y="' + (120 + p * 112) + '" width="210" height="98" rx="10" fill="' + ["#2f6b57", "#7d5a2a", "#7a3128"][Math.min(2, Math.floor(((3 - p) * (i + 1)) / 3))] + '" opacity=".55"/>';
+    s += '<ellipse cx="800" cy="860" rx="900" ry="210" fill="#1d130c"/><ellipse cx="800" cy="840" rx="760" ry="150" fill="#3a2716"/>';
+    return svgWrap(s, '<radialGradient id="warm" cx="50%" cy="30%" r="80%"><stop offset="0" stop-color="#3b2c1c"/><stop offset="1" stop-color="#0d0a07"/></radialGradient>');
+  },
+  tribunal: function () {
+    var s = '<rect width="1600" height="900" fill="url(#gold)"/>';
+    for (var i = 0; i < 6; i++) s += '<polygon points="' + (500 + i * 120) + ',0 ' + (560 + i * 120) + ',0 ' + (380 + i * 170) + ',900 ' + (300 + i * 170) + ',900" fill="#f3d9a0" opacity=".05"/>';
+    [140, 400, 1140, 1400].forEach(function (x) { s += '<rect x="' + x + '" y="120" width="70" height="700" fill="#2a2116"/><rect x="' + (x - 14) + '" y="100" width="98" height="26" fill="#3a2d1d"/><rect x="' + (x - 14) + '" y="810" width="98" height="30" fill="#3a2d1d"/>'; });
+    s += '<rect y="840" width="1600" height="60" fill="#140f09"/>';
+    return svgWrap(s, '<radialGradient id="gold" cx="50%" cy="0%" r="100%"><stop offset="0" stop-color="#5a4426"/><stop offset="1" stop-color="#0d0a07"/></radialGradient>');
+  }
+};
+var sceneCache = {}, currentScene = null, bgFront = "bgA";
+function setScene(name) {
+  if (name === currentScene) return;
+  currentScene = name;
+  var back = bgFront === "bgA" ? "bgB" : "bgA";
+  var el = $(back); el.innerHTML = sceneCache[name] || (sceneCache[name] = SCENES[name]());
+  el.classList.remove("fade"); $(bgFront).classList.add("fade"); bgFront = back;
+}
+
+/* =====================================================================
+   5. UTILIDADES Y ESTADO
+   ===================================================================== */
+function $(id) { return document.getElementById(id); }
+function store(key, val) { try { if (val === undefined) return JSON.parse(localStorage.getItem("sigmaNovela." + key)); localStorage.setItem("sigmaNovela." + key, JSON.stringify(val)); } catch (e) { return null; } }
+var state = { idx: 0, xp: 0, answered: {}, evidence: {}, auto: false, voice: store("voice") !== false, typing: false, speaking: false, started: false };
+var sprite = $("sprite"), mouth = $("mouth");
+
+function toast(title, text, good) {
+  var t = document.createElement("div"); t.className = "toast" + (good ? " good" : "");
+  t.innerHTML = "<b>" + esc(title) + "</b>" + esc(text); $("toasts").appendChild(t);
+  setTimeout(function () { t.remove(); }, 4300);
+}
+function updateHud() {
+  $("xp").textContent = state.xp;
+  $("evCount").textContent = Object.keys(state.evidence).length + "/" + TOTAL_EV;
+  $("progressBar").style.width = Math.round((state.idx + 1) / FLAT.length * 100) + "%";
+  $("btnVoice").classList.toggle("on", state.voice);
+  $("btnAuto").classList.toggle("on", state.auto);
+}
+
+/* ---------- Avatar: expresiones, parpadeo, boca ---------- */
+var MOUTHS = {
+  rest: ["M192 326q14 8 28 0", "none"],
+  smile: ["M188 322q18 16 36 0", "none"],
+  serious: ["M193 328q13 -2 26 0", "none"],
+  surprised: ["M199 322q7 -6 14 0q2 12 -7 13q-9 -1 -7 -13Z", "#7a2f35"],
+  a: ["M191 321q15 -4 30 0q-3 18 -15 19q-12 -1 -15 -19Z", "#7a2f35"],
+  e: ["M189 322q17 -4 34 0q-8 11 -17 11q-9 0 -17 -11Z", "#7a2f35"],
+  o: ["M198 321q8 -7 16 0q3 14 -8 15q-11 -1 -8 -15Z", "#7a2f35"]
+};
+var exprNow = "neutral";
+function setMouth(k) { var m = MOUTHS[k]; mouth.setAttribute("d", m[0]); mouth.setAttribute("fill", m[1]); }
+function restMouth() { setMouth(exprNow === "happy" ? "smile" : exprNow === "serious" ? "serious" : exprNow === "surprised" ? "surprised" : "rest"); }
+function setExpr(e) { exprNow = e || "neutral"; sprite.className = sprite.className.replace(/expr-\w+/, "") + " expr-" + exprNow; sprite.className = sprite.className.replace(/\s+/g, " "); if (!talkTimer) restMouth(); }
+(function blinkLoop() { setTimeout(function () { sprite.classList.add("blink"); setTimeout(function () { sprite.classList.remove("blink"); blinkLoop(); }, 130); }, 2200 + Math.random() * 3200); })();
+var talkTimer = null;
+function startTalk() {
+  if (talkTimer) return; sprite.classList.add("talking");
+  var seq = ["a", "e", "o", "rest", "a", "e", "smile"];
+  talkTimer = setInterval(function () { setMouth(seq[Math.floor(Math.random() * seq.length)]); }, 105);
+}
+function stopTalk() { clearInterval(talkTimer); talkTimer = null; sprite.classList.remove("talking"); restMouth(); }
+
+/* ---------- Voz (síntesis) ---------- */
+var synth = window.speechSynthesis, voice = null;
+function pickVoice() {
+  if (!synth) return;
+  var vs = synth.getVoices().filter(function (v) { return /^es/i.test(v.lang); });
+  var prefer = [/salome/i, /dalia/i, /paloma/i, /elvira/i, /helena/i, /sabina/i, /laura/i, /google.*espa/i, /female|mujer/i];
+  var order = ["es-CO", "es-MX", "es-US", "es-419", "es-ES"];
+  vs.sort(function (a, b) {
+    var sa = prefer.findIndex(function (r) { return r.test(a.name); }), sb = prefer.findIndex(function (r) { return r.test(b.name); });
+    sa = sa < 0 ? 99 : sa; sb = sb < 0 ? 99 : sb;
+    var la = order.indexOf(a.lang), lb = order.indexOf(b.lang); la = la < 0 ? 9 : la; lb = lb < 0 ? 9 : lb;
+    return (la * 100 + sa) - (lb * 100 + sb);
+  });
+  voice = vs[0] || null;
+}
+if (synth) { pickVoice(); synth.onvoiceschanged = pickVoice; }
+var SAY = [
+  [/SIGMA-F/g, "Sigma efe"], [/\bOCR\b/g, "o ce erre"], [/\bIA\b/g, "i a"], [/\bAPI\b/g, "a pi"], [/\bSSRF\b/g, "ese ese erre efe"],
+  [/\bSRI\b/g, "ese erre i"], [/\bCDN\b/g, "ce de ene"], [/\bOWASP\b/g, "o guasp"], [/\bHTTPS\b/g, "ache te te pe ese"], [/\bHTTP\b/g, "ache te te pe"],
+  [/\bDNS\b/g, "de ene ese"], [/\bCORS\b/g, "cors"], [/127\.0\.0\.1/g, "ciento veintisiete, cero, cero, uno"], [/\bH-0(\d)/g, "hallazgo $1"],
+  [/\bE-0(\d)/g, "evidencia $1"], [/ISO\/IEC/g, "ISO"], [/\.env\.local/g, "punto env punto local"], [/index\.html/g, "index punto html"],
+  [/server\.mjs/g, "server punto m j s"], [/DeepSeek/g, "Dip sik"], [/Node\.js/g, "Nod yei es"], [/localStorage/g, "local storage"], [/Tesseract\.js/g, "Teseract yei es"]
+];
+function speakable(t) { SAY.forEach(function (p) { t = t.replace(p[0], p[1]); }); return t; }
+var speakToken = 0;
+function speak(text, onEnd) {
+  var token = ++speakToken;
+  if (!synth || !state.voice) { if (onEnd) onEnd(); return; }
+  synth.cancel();
+  var parts = speakable(text).match(/[^.!?¿¡]+[.!?]*|[¿¡][^?!]+[?!]/g) || [text];
+  var i = 0; state.speaking = true;
+  (function next() {
+    if (token !== speakToken) return;
+    if (i >= parts.length) { state.speaking = false; stopTalk(); if (onEnd) onEnd(); return; }
+    var u = new SpeechSynthesisUtterance(parts[i++].trim());
+    u.lang = voice ? voice.lang : "es-CO"; if (voice) u.voice = voice; u.rate = 1.03; u.pitch = 1.08;
+    u.onstart = function () { if (token === speakToken) startTalk(); };
+    u.onend = function () { next(); };
+    u.onerror = function () { next(); };
+    synth.speak(u);
+  })();
+}
+function stopSpeak() { speakToken++; state.speaking = false; if (synth) synth.cancel(); stopTalk(); }
+
+/* =====================================================================
+   6. MOTOR DE NOVELA
+   ===================================================================== */
+var typeTimer = null, autoTimer = null, lineDone = false;
+function renderCard(card) {
+  var z = $("cardZone");
+  if (!card) { z.innerHTML = ""; return; }
+  var key = Array.isArray(card) ? card.join(":") : card;
+  if (z.dataset.key === key) return;
+  z.dataset.key = key;
+  var html = Array.isArray(card) ? CARDS[card[0]](card[1]) : CARDS[card]();
+  z.innerHTML = '<article class="card">' + html + '</article>';
+}
+function lastCardBefore(idx) {
+  for (var i = idx; i >= 0 && FLAT[i].ci === FLAT[idx].ci; i--) if (FLAT[i].line.card) return FLAT[i].line.card;
+  return null;
+}
+function showChapterIntro(ci, cb) {
+  $("ciNum").textContent = ci === 0 ? "Prólogo" : "Capítulo " + ci;
+  $("ciTitle").textContent = CHAPTERS[ci].title.replace(/^Prólogo · /, "");
+  $("chapIntro").classList.add("show"); state.intro = true;
+  setTimeout(function () { $("chapIntro").classList.remove("show"); state.intro = false; cb(); }, 1900);
+}
+function goTo(idx, opts) {
+  opts = opts || {};
+  if (idx < 0 || idx >= FLAT.length) return;
+  var prevCi = FLAT[state.idx] ? FLAT[state.idx].ci : -1;
+  state.idx = idx;
+  var item = FLAT[idx];
+  if (opts.intro || (item.li === 0 && item.ci !== prevCi && !opts.noIntro)) { stopSpeak(); showChapterIntro(item.ci, function () { playLine(); }); setScene(CHAPTERS[item.ci].scene); return; }
+  playLine();
+}
+function playLine() {
+  var item = FLAT[state.idx], l = item.line, ch = CHAPTERS[item.ci];
+  clearInterval(typeTimer); clearTimeout(autoTimer); stopSpeak();
+  setScene(ch.scene);
+  $("chapLabel").textContent = ch.title;
+  updateHud();
+  renderCard(lastCardBefore(state.idx));
+  var tag = $("nametag"), txt = $("dlgText");
+  tag.className = "nametag " + l.who;
+  tag.innerHTML = l.who === "ada" ? "Ada<small>Auditora líder</small>" : l.who === "sigma" ? "SIGMA-F<small>Sistema auditado</small>" : "Narración";
+  txt.className = "dlg-text" + (l.who === "narr" ? " narr" : "");
+  sprite.classList.toggle("dim", l.who !== "ada");
+  $("sigmaOrb").classList.toggle("show", l.who === "sigma");
+  setExpr(l.who === "ada" ? (l.expr || "neutral") : exprNow);
+  $("choices").classList.remove("show");
+  $("nextInd").classList.remove("show");
+  if (l.evidence && !state.evidence[l.evidence]) {
+    state.evidence[l.evidence] = true; state.xp += 10; updateHud();
+    var isF = l.evidence.charAt(0) === "H";
+    toast(isF ? "Hallazgo registrado" : "Evidencia obtenida", l.evidence + " · " + (isF ? FINDINGS : CONTROLS).filter(function (x) { return x.id === l.evidence; })[0].t, !isF);
+  }
+  // Máquina de escribir + voz
+  lineDone = false; state.typing = true;
+  var full = l.text, i = 0;
+  txt.innerHTML = '<span></span><span class="caret"></span>';
+  var span = txt.firstChild;
+  var talkWhileTyping = !(synth && state.voice) && l.who === "ada";
+  if (talkWhileTyping) startTalk();
+  var speechDone = false, typedDone = false;
+  function maybeFinish() { if (speechDone && typedDone) finishLine(); }
+  speak(full, function () { speechDone = true; maybeFinish(); });
+  typeTimer = setInterval(function () {
+    i += 2; span.textContent = full.slice(0, i);
+    if (i >= full.length) { clearInterval(typeTimer); state.typing = false; typedDone = true; if (talkWhileTyping) stopTalk(); showAfterType(); maybeFinish(); }
+  }, 24);
+}
+function completeTyping() {
+  var l = FLAT[state.idx].line;
+  clearInterval(typeTimer); state.typing = false;
+  $("dlgText").firstChild.textContent = l.text;
+  if (!(synth && state.voice)) stopTalk();
+  showAfterType();
+}
+function showAfterType() {
+  var l = FLAT[state.idx].line;
+  if (l.choice) showChoice(l.choice); else $("nextInd").classList.add("show");
+}
+function finishLine() {
+  lineDone = true;
+  var l = FLAT[state.idx].line;
+  if (state.auto && !l.choice && !$("stage").classList.contains("asking")) autoTimer = setTimeout(next, 1100);
+}
+function showChoice(c) {
+  var box = $("choices"), key = state.idx, prev = state.answered[key];
+  box.innerHTML = '<div class="q">' + esc(c.q) + '</div>';
+  c.options.forEach(function (o, oi) {
+    var b = document.createElement("button"); b.className = "choice"; b.textContent = o.t;
+    if (prev) { b.disabled = true; if (o.ok) b.classList.add("right"); if (prev.pick === oi && !o.ok) b.classList.add("wrong"); }
+    b.onclick = function () { answer(c, oi); };
+    box.appendChild(b);
+  });
+  if (prev) $("nextInd").classList.add("show");
+  box.classList.add("show");
+}
+function answer(c, oi) {
+  if (state.answered[state.idx]) return;
+  var o = c.options[oi];
+  state.answered[state.idx] = { pick: oi, ok: !!o.ok };
+  if (o.ok) { state.xp += 25; toast("¡Correcto! +25 XP", "", true); }
+  else toast("Respuesta incorrecta", "Revisa la explicación de Ada.");
+  updateHud();
+  Array.prototype.forEach.call($("choices").querySelectorAll(".choice"), function (b, i) { b.disabled = true; if (c.options[i].ok) b.classList.add("right"); if (i === oi && !o.ok) b.classList.add("wrong"); });
+  setExpr(o.ok ? "happy" : "serious");
+  $("nametag").className = "nametag ada"; $("nametag").innerHTML = "Ada<small>Auditora líder</small>"; sprite.classList.remove("dim");
+  $("dlgText").className = "dlg-text"; $("dlgText").textContent = o.fb;
+  speak(o.fb, function () { $("nextInd").classList.add("show"); if (state.auto) autoTimer = setTimeout(next, 1100); });
+  if (!(synth && state.voice)) $("nextInd").classList.add("show");
+}
+function next() {
+  if ($("stage").classList.contains("asking") || state.intro) return;
+  var l = FLAT[state.idx].line;
+  if (state.typing) { completeTyping(); return; }
+  if (l.choice && !state.answered[state.idx]) return;
+  if (l.end || state.idx >= FLAT.length - 1) { showFinal(); return; }
+  goTo(state.idx + 1);
+}
+function back() { if (state.idx > 0 && !state.intro) goTo(state.idx - 1, { noIntro: true }); }
+function skipChapter() { var ci = FLAT[state.idx].ci; if (ci < CHAPTERS.length - 1) goTo(CHAPTERS[ci + 1].start); else showFinal(); }
+function start(idx) {
+  $("titleScreen").classList.remove("show"); $("finalScreen").classList.remove("show");
+  closeOverlays(); state.started = true; $("stage").classList.add("started");
+  goTo(idx || 0, { intro: true });
+}
+function showFinal() {
+  stopSpeak(); clearTimeout(autoTimer);
+  var hits = Object.keys(state.answered).filter(function (k) { return state.answered[k].ok; }).length;
+  $("fXp").textContent = state.xp; $("fHits").textContent = hits + "/" + TOTAL_Q; $("fEv").textContent = Object.keys(state.evidence).length;
+  var ratio = TOTAL_Q ? hits / TOTAL_Q : 0;
+  $("finalRank").textContent = ratio >= .85 ? "Auditor líder" : ratio >= .6 ? "Auditor senior" : "Auditor en formación";
+  $("finalScreen").classList.add("show");
+  setExpr("happy");
+  speak("Auditoría terminada. Tu rango es " + $("finalRank").textContent + ". ¿Quieres hacerme alguna pregunta?");
+}
+
+/* =====================================================================
+   7. EXPLICACIÓN DEL PROYECTO
+   ===================================================================== */
+var EXPLAIN = [
+  ["El proyecto", function () { return CARDS.queEs() + '<hr style="border:0;border-top:1px solid #0002;margin:18px 0">' + CARDS.flujo() + '<p style="margin-top:12px"><b>Tecnología:</b> HTML, CSS y JavaScript en el navegador; Node.js 18+ sin dependencias externas en el servidor; Tesseract.js para OCR; proveedor de IA configurable (DeepSeek por defecto) mediante la API Chat Completions. Los datos del dashboard son simulados.</p>'; }],
+  ["Arquitectura", function () { return CARDS.arquitectura() + CARDS.puntaje().replace('<div class="kicker">Fase 2 · Conocer el sistema</div>', '<div class="kicker" style="margin-top:20px">Motor de reglas</div>'); }],
+  ["Auditoría de sistemas", function () { return CARDS.definicion() + '<br>' + CARDS.fases() + '<br>' + CARDS.tiposControl(); }],
+  ["Planeación", function () { return CARDS.planeacion() + '<br>' + CARDS.tecnicas() + '<br>' + CARDS.criterios(); }],
+  ["Pruebas y controles", function () { return CARDS.pruebas() + '<h3 style="margin-top:22px">Controles evaluados</h3><table class="t"><tr><th>ID</th><th>Control</th><th>Tipo</th><th>Evidencia</th><th>Criterio</th><th>Resultado</th></tr>' + CONTROLS.map(function (c) { return '<tr><td class="mono">' + c.id + '</td><td><b>' + esc(c.t) + '</b></td><td>' + c.tipo + '</td><td>' + esc(c.ev) + '</td><td>' + esc(c.crit) + '</td><td><span class="pill ok">' + c.res + '</span></td></tr>'; }).join("") + '</table>'; }],
+  ["Hallazgos", function () { return CARDS.hallazgoEstructura() + FINDINGS.map(function (f) { return '<hr style="border:0;border-top:1px solid #0002;margin:18px 0"><div style="position:relative">' + CARDS.hallazgo(f.id) + '</div>'; }).join(""); }],
+  ["Matriz y plan de acción", function () { return CARDS.matriz() + '<br>' + CARDS.hosting() + '<br>' + CARDS.plan(); }],
+  ["Dictamen", function () { return CARDS.dictamen(); }],
+  ["Guion para exponer", function () { return '<div class="kicker">Para el expositor</div><h2>Guion sugerido (15 minutos)</h2><table class="t"><tr><th>Min.</th><th>Qué decir</th><th>Capítulo</th></tr>' + [
+      ["0–1", "Presentar SIGMA-F: el problema del fraude digital y qué hace el sistema.", "Prólogo"],
+      ["1–3", "Definir auditoría de sistemas, criterios (ISO 19011, ISO/IEC 27001/27002, COBIT, OWASP, Ley 1581, Ley 1273), fases y tipos de control.", "1"],
+      ["3–4", "Objetivo, alcance (qué entra y qué no) y técnicas; riesgo de auditoría.", "2"],
+      ["4–6", "Arquitectura: navegador, servidor local, proveedor de IA. Explicar el puntaje con el SMS de ejemplo.", "3"],
+      ["6–8", "Controles efectivos E-01 a E-07. Demostración en vivo de la prueba SSRF.", "4"],
+      ["8–11", "Hallazgos H-01 a H-08 con condición, criterio, causa y efecto. Pedir al público que clasifique uno.", "5"],
+      ["11–13", "Matriz probabilidad × impacto. Plan de acción simulando SIGMA-F en hosting: supuestos, riesgos que suben y acciones con responsable, fecha e indicador.", "6"],
+      ["13–15", "Dictamen favorable con salvedades, limitaciones y preguntas a Ada por micrófono.", "7"]
+    ].map(function (r) { return '<tr><td class="mono">' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td></tr>'; }).join("") + '</table><h3>Preguntas que pueden hacer (y Ada responde)</h3><ul><li>¿Por qué el dictamen es con salvedades y no favorable?</li><li>¿Qué diferencia hay entre un control preventivo y uno detectivo?</li><li>¿Qué es SSRF y cómo lo probaron?</li><li>¿Cumple SIGMA-F con la Ley 1581?</li><li>¿Cuál hallazgo atenderías primero y por qué?</li><li>¿Qué cambia si SIGMA-F se publica en un hosting?</li></ul>'; }]
+];
+function openExplain(tab) {
+  closeOverlays(); stopSpeak();
+  var tabs = $("explainTabs"); tabs.innerHTML = "";
+  EXPLAIN.forEach(function (e, i) { var b = document.createElement("button"); b.textContent = e[0]; b.onclick = function () { showTab(i); }; tabs.appendChild(b); });
+  function showTab(i) { Array.prototype.forEach.call(tabs.children, function (b, j) { b.classList.toggle("on", i === j); }); $("explainBody").innerHTML = '<article class="card">' + EXPLAIN[i][1]() + '</article>'; $("explainBody").scrollTop = 0; }
+  showTab(tab || 0);
+  $("explainOv").classList.add("show");
+}
+
+/* =====================================================================
+   8. AVATAR QUE RESPONDE (expediente local + IA opcional)
+   ===================================================================== */
+var KB = [
+  { k: ["hola", "buenas", "buenos dias", "buenas tardes", "que tal"], a: "¡Hola! Soy Ada, la auditora de este expediente. Pregúntame sobre SIGMA-F, los controles, los hallazgos o la auditoría de sistemas." },
+  { k: ["quien eres", "como te llamas", "tu nombre", "que eres"], a: "Soy Ada, una auditora de sistemas virtual. Guío la exposición y respondo preguntas con el expediente de la auditoría a SIGMA-F." },
+  { k: ["gracias", "muy bien", "excelente", "genial"], a: "¡Con gusto! Si quieres, pregúntame por el hallazgo más grave o por el dictamen." },
+  { k: ["que es sigma", "sigma f", "sigma", "que hace el sistema", "proyecto", "de que trata"], a: "SIGMA-F es el Sistema Inteligente de Gestión y Monitoreo de Fraude Digital. Analiza un mensaje sospechoso, una captura y el remitente, y entrega un puntaje de riesgo de 0 a 100 con señales, hechos, incertidumbres y fuentes oficiales para verificar." },
+  { k: ["como funciona", "flujo", "funcionamiento", "paso a paso"], a: "Funciona en cuatro pasos: capturar la evidencia, normalizarla con OCR y extracción de enlaces, clasificar el riesgo con reglas locales y, si el usuario lo activa, con IA, y por último activar la prevención con recomendaciones y fuentes oficiales." },
+  { k: ["ocr", "tesseract", "captura", "imagen"], a: "El OCR usa Tesseract.js dentro del navegador, así que la captura se lee en el equipo del usuario. La imagen solo sale hacia el proveedor de IA si el usuario activa el análisis remoto." },
+  { k: ["deepseek", "inteligencia artificial", "modelo", "ia", "proveedor"], a: "SIGMA-F puede consultar un proveedor de IA compatible con Chat Completions, por defecto DeepSeek. La clave vive en el servidor local, el contenido remoto se trata como no confiable y la respuesta se valida; si falla, se conserva el análisis local." },
+  { k: ["puntaje", "score", "puntos", "como calcula", "nivel de riesgo", "reglas"], a: "El puntaje local parte de 8 puntos y suma por señal: 24 si pide códigos o dinero, 18 si pide confirmar datos, 17 por enlace o urgencia, 11 por un beneficio inesperado y 8 si menciona una entidad. Setenta o más es alto, cuarenta o más es medio." },
+  { k: ["arquitectura", "componentes", "servidor", "node", "rutas", "endpoint"], a: "Tiene tres partes: la interfaz en el navegador con OCR y reglas; un servidor Node.js que escucha solo en 127.0.0.1 con las rutas health, verify, inspect-links y provider check; y el proveedor de IA externo, al que solo el servidor le habla." },
+  { k: ["fuentes oficiales", "cai virtual", "policia", "fiscalia", "colcert", "mintic", "denunciar"], a: "SIGMA-F orienta hacia fuentes oficiales: CAI Virtual de la Policía, ColCERT, la Fiscalía y MinTIC. Aclara que la herramienta no reemplaza una denuncia." },
+  { k: ["datos simulados", "datos reales", "muestra"], a: "El dashboard usa doce registros simulados como muestra. Por eso, una limitación de la auditoría es que no se probó con usuarios reales ni en producción." },
+  { k: ["auditoria de sistemas", "que es auditoria", "que es una auditoria", "auditar", "definicion"], a: "La auditoría de sistemas es un examen independiente y sistemático de un sistema de información para opinar si protege sus activos, mantiene la integridad de los datos, cumple sus objetivos y usa bien sus recursos." },
+  { k: ["objetivo"], a: "El objetivo fue evaluar la seguridad, la confiabilidad de los resultados y el cumplimiento en protección de datos del prototipo SIGMA-F versión 1.0.0." },
+  { k: ["alcance", "fuera del alcance", "que se audito", "que no se audito"], a: "El alcance incluyó server.mjs, la interfaz index.html con su OCR y reglas, la integración con el proveedor de IA y la configuración. Quedaron fuera la infraestructura de DeepSeek, el equipo del usuario y cualquier prueba destructiva." },
+  { k: ["criterio", "normas", "norma", "estandar", "marco"], a: "Los criterios fueron ISO 19011 para el proceso de auditoría, ISO/IEC 27001 y 27002 para controles de seguridad, COBIT 2019 para gobierno de TI, OWASP Top 10 web y para LLM, NIST CSF 2.0, y en Colombia la Ley 1581 de 2012 y la Ley 1273 de 2009." },
+  { k: ["iso 19011", "19011"], a: "ISO 19011 de 2018 da las directrices para auditar sistemas de gestión: cómo gestionar el programa, planear, ejecutar, informar y hacer seguimiento." },
+  { k: ["27001", "27002", "iso 27"], a: "ISO/IEC 27001 define el sistema de gestión de seguridad de la información y la 27002 de 2022 describe sus 93 controles. Usamos, por ejemplo, 5.17 información de autenticación, 8.15 registro de eventos y 8.20 seguridad de redes." },
+  { k: ["cobit"], a: "COBIT 2019 es un marco de gobierno y gestión de TI con cinco dominios: EDM, APO, BAI, DSS y MEA. Lo usamos para el hallazgo de falta de bitácora, ligado a DSS05 y MEA01." },
+  { k: ["owasp"], a: "OWASP Top 10 lista los riesgos más críticos de aplicaciones web; usamos A01, A05, A06, A08 y A10. También el OWASP Top 10 para aplicaciones con modelos de lenguaje de 2025, por ejemplo inyección de prompt y consumo ilimitado." },
+  { k: ["nist"], a: "El NIST Cybersecurity Framework 2.0 organiza la seguridad en seis funciones: gobernar, identificar, proteger, detectar, responder y recuperar." },
+  { k: ["1581", "habeas data", "datos personales", "privacidad", "proteccion de datos"], a: "La Ley 1581 de 2012 regula los datos personales en Colombia. SIGMA-F pide consentimiento con una casilla antes de enviar evidencias a la IA, pero le falta un aviso de privacidad formal y registro de la autorización: es el hallazgo cinco." },
+  { k: ["1273", "delitos informaticos", "delito", "legal"], a: "La Ley 1273 de 2009 tipifica los delitos informáticos en Colombia. Por eso solo hicimos pruebas controladas en nuestro servidor local y nunca contra sistemas de terceros." },
+  { k: ["fases", "etapas", "proceso de auditoria"], a: "Las fases son planeación, ejecución con pruebas y evidencias, informe con hallazgos y dictamen, y seguimiento al plan de mejoramiento." },
+  { k: ["tecnicas", "metodologia", "como auditaron", "como lo hicieron"], a: "Usamos revisión de código fuente, inspección de configuración, un recorrido del flujo y pruebas controladas en local con peticiones reales al servidor." },
+  { k: ["evidencia", "evidencias", "tipos de evidencia"], a: "La evidencia debe ser suficiente y confiable. Tuvimos evidencia documental, con líneas exactas del código, y evidencia de prueba, con respuestas reales del servidor. La testimonial, solo preguntar, es la más débil." },
+  { k: ["riesgo de auditoria", "riesgo inherente", "riesgo de control", "riesgo de deteccion"], a: "El riesgo de auditoría es la posibilidad de emitir una opinión equivocada. Combina el riesgo inherente, el de control y el de detección. Combinar técnicas reduce el riesgo de detección." },
+  { k: ["preventivo", "detectivo", "correctivo", "tipos de control", "control interno"], a: "Los controles preventivos evitan el problema, como bloquear enlaces privados; los detectivos lo descubren, como el puntaje de riesgo; y los correctivos lo reparan, como volver al análisis local si la IA falla o reportar en CAI Virtual." },
+  { k: ["controles", "que funciona", "fortalezas", "lo bueno", "positivo"], a: "Encontramos siete controles efectivos: la clave solo en el servidor, el servidor aislado en 127.0.0.1, la protección contra SSRF, el bloqueo de path traversal, los límites de capacidad, las defensas del agente de IA y el HTTPS obligatorio con confirmación al borrar." },
+  { k: ["ssrf", "falsificacion de solicitudes", "ip privada", "192.168", "red privada"], a: "SSRF es la falsificación de solicitudes del lado del servidor: engañar al servidor para que abra direcciones internas. SIGMA-F bloquea IP privadas, localhost, puertos distintos de 80 y 443 y URL con credenciales. Lo probamos y respondió que el destino privado está bloqueado." },
+  { k: ["pruebas", "prueba", "probaron", "curl", "resultado de las pruebas"], a: "Hicimos siete pruebas en local: cuatro enlaces peligrosos bloqueados, un intento de path traversal con respuesta 404, un envío de 19 megas cortado por el servidor, y una prueba de CORS que falló y originó el hallazgo uno." },
+  { k: ["path traversal", "traversal", "carpeta dist"], a: "Path traversal es pedir archivos fuera de la carpeta pública usando dos puntos y barra. Pedimos el .env.local así y el servidor respondió 404, porque verifica que la ruta quede dentro de dist." },
+  { k: ["127.0.0.1", "localhost", "aislado", "red local"], a: "El servidor escucha solo en 127.0.0.1, la interfaz de bucle local. Así ningún otro equipo de la red puede conectarse a él. Es la evidencia dos." },
+  { k: ["clave", "api key", "env", "secreto"], a: "La clave de IA vive en .env.local y solo la lee el servidor, eso es un buen control. El problema es que ese archivo con una clave real está dentro de la carpeta del proyecto: es el hallazgo seis, el único de riesgo alto." },
+  { k: ["hallazgos", "problemas", "debilidades", "que encontraron", "cuantos hallazgos"], a: "Encontramos ocho hallazgos: CORS abierto, dependencia de CDN sin SRI, opción de guardar la clave en localStorage, falta de bitácora, envío de datos personales sin aviso formal, clave real en la carpeta, sin límite de peticiones y una ventana de DNS rebinding. Uno es alto, cuatro medios y tres bajos." },
+  { k: ["hallazgo", "estructura", "condicion", "causa", "efecto", "atributos"], a: "Cada hallazgo tiene cuatro atributos: condición, lo que encontramos; criterio, lo que debería ser; causa, por qué pasa; y efecto, el riesgo. Después va la recomendación." },
+  { k: ["mas grave", "mas critico", "riesgo alto", "hallazgo 6", "hallazgo seis", "atender primero", "prioridad"], a: "El más grave es el hallazgo seis: el archivo .env.local con la clave real está dentro de la carpeta del proyecto. Si se comparte comprimida, la clave se filtra. Se corrige en minutos: sacar el archivo, distribuir un .env.example y rotar la clave." },
+  { k: ["cors", "hallazgo 1", "hallazgo uno", "asterisco", "origen"], a: "El hallazgo uno es CORS abierto: la API responde con Access-Control-Allow-Origin asterisco. Una página maliciosa abierta en el mismo equipo podría usar el servidor y gastar la clave. Es riesgo medio y se corrige permitiendo solo el propio origen." },
+  { k: ["sri", "cdn", "integridad", "hallazgo 2", "hallazgo dos", "jsdelivr"], a: "El hallazgo dos: Tesseract.js se carga desde un CDN con versión abierta y sin SRI, la verificación de integridad por hash. Si el CDN se compromete, ese código vería las evidencias. Se corrige fijando la versión y agregando integrity." },
+  { k: ["localstorage", "recordar la clave", "hallazgo 3", "hallazgo tres", "xss"], a: "El hallazgo tres: si el usuario elige recordar la clave, se guarda en localStorage, donde un script malicioso podría leerla. Es opcional y advierte el riesgo, por eso es bajo." },
+  { k: ["bitacora", "logs", "registro", "trazabilidad", "hallazgo 4", "hallazgo cuatro"], a: "El hallazgo cuatro: no hay bitácora de auditoría. El servidor no registra quién consultó ni qué se envió al proveedor. Recomendamos una bitácora local sin datos sensibles." },
+  { k: ["hallazgo 5", "hallazgo cinco", "tercero", "exterior", "transferencia"], a: "El hallazgo cinco: las capturas pueden tener datos personales y se envían a un proveedor en el exterior. Hay casilla de consentimiento, pero falta aviso de privacidad formal y registro de la autorización según la Ley 1581." },
+  { k: ["rate limit", "limite de peticiones", "hallazgo 7", "hallazgo siete", "consumo"], a: "El hallazgo siete: no hay límite de peticiones por minuto, así que un abuso podría disparar el costo del proveedor de IA. Es riesgo bajo en uso local." },
+  { k: ["dns rebinding", "rebinding", "hallazgo 8", "hallazgo ocho", "toctou"], a: "El hallazgo ocho: el dominio se valida con DNS y luego se vuelve a resolver al conectarse. En ese instante, un atacante con control de su DNS podría cambiar la IP. Es bajo porque es difícil y solo se permiten los puertos 80 y 443." },
+  { k: ["matriz", "probabilidad", "impacto", "calificacion", "como clasificaron"], a: "Usamos una matriz de probabilidad por impacto, de uno a tres cada eje. Seis o más es alto, de tres a cuatro es medio, y menos de tres es bajo. Quedó un hallazgo alto, cuatro medios y tres bajos." },
+  { k: ["recomendaciones", "plan", "plan de accion", "mejora", "que hacer", "solucion"], a: "El plan de acción supone a SIGMA-F en un hosting. Antes de publicar: clave en los secretos del hosting y rotada, HTTPS con HSTS, CORS solo al dominio oficial, límite de peticiones con tope de gasto y autenticación. En el primer mes: SRI y cabeceras de seguridad, bitácora, aviso de privacidad y quitar recordar clave. Luego: firewall de salida, copias de seguridad, anti DDoS, escaneo de dependencias y auditoría de seguimiento." },
+  { k: ["hosting", "nube", "publicar", "internet", "produccion", "desplegar", "servidor web", "dominio"], a: "Si SIGMA-F se publica en un hosting, el aislamiento en 127.0.0.1 deja de aplicar y queda expuesto a internet. El CORS abierto y la falta de límite de peticiones pasan a riesgo alto, y aparece un riesgo nuevo: no hay autenticación. Por eso el plan exige HTTPS, secretos del hosting, CORS al dominio oficial, límite de peticiones y login antes de publicar." },
+  { k: ["responsable", "indicador", "fecha", "cronograma", "cuando"], a: "Cada acción del plan tiene responsable, fecha e indicador. Por ejemplo, la clave la atiende el desarrollador backend entre el 20 y el 31 de octubre, y el indicador es cero secretos en el repositorio según el escaneo." },
+  { k: ["dictamen", "opinion", "conclusion", "veredicto", "resultado final"], a: "El dictamen es favorable con salvedades. Los controles críticos funcionan, pero hay salvedades: la clave en la carpeta, el CORS abierto, la dependencia sin SRI, la falta de bitácora y el aviso de privacidad." },
+  { k: ["por que salvedades", "salvedad", "no favorable", "adverso", "limpio"], a: "No es favorable sin salvedades porque hay un riesgo alto y varios medios sin corregir. Tampoco es adverso, porque los controles esenciales existen y funcionaron. Por eso: favorable con salvedades." },
+  { k: ["limitaciones", "limitacion", "no se probo"], a: "Las limitaciones son: es un prototipo académico con datos simulados, la revisión fue de código y pruebas locales, no hubo usuarios reales ni producción, y la infraestructura del proveedor de IA quedó fuera del alcance." },
+  { k: ["prompt injection", "inyeccion", "llm"], a: "La inyección de prompt es meter instrucciones maliciosas en el contenido que lee la IA. SIGMA-F le dice al modelo que trate el contenido remoto como evidencia no confiable, y además valida la estructura de la respuesta." },
+  { k: ["seguridad", "es seguro", "confiable"], a: "Para un prototipo local, la seguridad es buena: tiene controles sólidos contra SSRF, path traversal y exposición de la clave en el navegador. Pero no es apto para producción hasta corregir el hallazgo seis y los riesgos medios." }
+];
+function norm(s) { return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9.\s-]/g, " ").replace(/\s+/g, " ").trim(); }
+function matchKB(q) {
+  var nq = " " + norm(q) + " ", best = { score: 0, a: null };
+  KB.forEach(function (e) {
+    var s = 0;
+    e.k.forEach(function (k) { var nk = norm(k); if (nq.indexOf(" " + nk) >= 0) s += nk.split(" ").length + (nk.length > 6 ? .5 : 0) + (/^(ssrf|cors|owasp|cobit|nist|sri|cdn|ocr|xss|toctou|rebinding|bitacora|dictamen|matriz|deepseek|tesseract|localstorage)$|\d/.test(nk) ? 1 : 0); });
+    if (s > best.score) best = { score: s, a: e.a };
+  });
+  return best;
+}
+var AI_CONTEXT = (function () {
+  var t = "SIGMA-F: Sistema Inteligente de Gestión y Monitoreo de Fraude Digital, prototipo académico local 1.0.0. Navegador (index.html, OCR Tesseract.js, reglas) + servidor Node.js en 127.0.0.1:4174 (rutas /api/health, /api/verify, /api/inspect-links, /api/provider/check) + proveedor de IA DeepSeek (Chat Completions). Datos del dashboard simulados.\n";
+  t += "Criterios: " + CRITERIA.map(function (c) { return c[0]; }).join("; ") + ".\n";
+  t += "Controles efectivos: " + CONTROLS.map(function (c) { return c.id + " " + c.t + " (" + c.ev + " Criterio: " + c.crit + ")"; }).join(" | ") + "\n";
+  t += "Hallazgos: " + FINDINGS.map(function (f) { return f.id + " " + f.t + " [" + f.level + ", P" + f.p + "xI" + f.i + "] Condición: " + f.cond + " Efecto: " + f.efecto + " Recomendación: " + f.rec; }).join(" | ") + "\n";
+  t += "Pruebas: " + TESTS.map(function (x) { return x[0] + " -> " + x[2] + " (" + x[3] + ")"; }).join("; ") + "\n";
+  t += "Plan de acción (escenario simulado: SIGMA-F en hosting " + HOSTING.url + "). Supuestos: " + HOSTING.supuestos.join(" ") + " Cambios: " + HOSTING.cambios.map(function (c) { return c[0] + ": " + c[1]; }).join("; ") + " Acciones: " + PLAN.map(function (r) { return r.fase + " (" + r.cuando + ") " + r.h + ": " + r.accion + " Responsable: " + r.resp + ". Indicador: " + r.ind; }).join(" | ") + "\n";
+  t += "Dictamen: favorable con salvedades. Limitaciones: prototipo con datos simulados, sin usuarios reales ni producción, proveedor de IA fuera del alcance.\n";
+  t += "Respuestas de referencia: " + KB.slice(3).map(function (e) { return e.a; }).join(" ");
+  return t.slice(0, 14000);
+})();
+
+var aiReady = false, history = [];
+fetch("/api/health").then(function (r) { return r.json(); }).then(function (j) {
+  aiReady = !!(j && j.deepseekConfigured && j.capabilities && j.capabilities.avatar);
+  $("askSrc").textContent = aiReady ? "expediente + IA (" + j.model + ")" : "expediente local";
+}).catch(function () { aiReady = false; });
+
+function addMsg(who, text, meta) {
+  var m = document.createElement("div"); m.className = "msg " + who; m.textContent = text;
+  if (meta) { var s = document.createElement("small"); s.textContent = meta; m.appendChild(s); }
+  $("chat").appendChild(m); $("chat").scrollTop = $("chat").scrollHeight; return m;
+}
+var asking = false;
+function ask(q) {
+  q = String(q || "").trim(); if (!q || asking) return;
+  asking = true; stopSpeak();
+  addMsg("user", q); $("askInput").value = "";
+  var local = matchKB(q);
+  setExpr("thinking");
+  var wait = addMsg("ada typing", "Revisando el expediente…");
+  function reply(text, src) {
+    wait.remove(); addMsg("ada", text, src);
+    history.push({ role: "user", content: q }, { role: "assistant", content: text }); history = history.slice(-8);
+    setExpr("happy"); asking = false;
+    speak(text, function () { setExpr("neutral"); });
+    if (!(synth && state.voice)) { startTalk(); setTimeout(stopTalk, Math.min(6000, text.length * 45)); }
+  }
+  if (local.score >= 2 || !aiReady) {
+    setTimeout(function () {
+      reply(local.score >= 1 ? local.a : "Esa pregunta no está en mi expediente. Puedo contarte qué es SIGMA-F, cómo lo auditamos, los controles, los hallazgos, la matriz de riesgos o el dictamen.", "expediente local");
+    }, 450);
+    return;
+  }
+  fetch("/api/avatar/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q, context: AI_CONTEXT, history: history }) })
+    .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+    .then(function (res) { if (res.ok && res.j.answer) reply(res.j.answer, "IA · " + res.j.provider); else throw new Error(res.j.error); })
+    .catch(function () { reply(local.score >= 1 ? local.a : "No pude consultar la IA y no tengo eso en el expediente. Pregúntame por los controles, los hallazgos o el dictamen.", "expediente local"); });
+}
+var SUGGEST = ["¿Qué es SIGMA-F?", "¿Qué es una auditoría de sistemas?", "¿Qué normas usaron?", "¿Qué es SSRF?", "¿Cuál es el hallazgo más grave?", "¿Por qué el dictamen tiene salvedades?"];
+function openAsk() {
+  closeOverlays();
+  $("titleScreen").classList.remove("show"); $("finalScreen").classList.remove("show");
+  clearInterval(typeTimer); clearTimeout(autoTimer); stopSpeak();
+  if (!currentScene) setScene("oficina");
+  $("stage").classList.add("asking");
+  sprite.classList.remove("dim", "hidden"); $("sigmaOrb").classList.remove("show");
+  if (!$("chat").children.length) {
+    var hi = "Pregúntame lo que quieras. Puedes escribir o pulsar el micrófono y hablar.";
+    addMsg("ada", hi); setExpr("happy"); speak(hi, function () { setExpr("neutral"); });
+  }
+  $("chips").innerHTML = "";
+  SUGGEST.forEach(function (s) { var b = document.createElement("button"); b.type = "button"; b.textContent = s; b.onclick = function () { ask(s); }; $("chips").appendChild(b); });
+  setTimeout(function () { $("askInput").focus(); }, 50);
+}
+function closeAsk() {
+  stopListening(); stopSpeak();
+  $("stage").classList.remove("asking");
+  if (!state.started) { $("titleScreen").classList.add("show"); return; }
+  playLine();
+}
+
+/* ---------- Micrófono: reconocimiento de voz ---------- */
+var SR = window.SpeechRecognition || window.webkitSpeechRecognition, rec = null, listening = false, micStream = null, audioCtx = null, lvlRaf = 0;
+function setMicState(t) { $("micState").textContent = t; }
+function stopListening() {
+  listening = false; $("micBtn").classList.remove("rec");
+  try { if (rec) rec.stop(); } catch (e) {}
+  if (micStream) { micStream.getTracks().forEach(function (t) { t.stop(); }); micStream = null; }
+  cancelAnimationFrame(lvlRaf); if (audioCtx) { audioCtx.close(); audioCtx = null; }
+}
+function meter(stream) {
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    var an = audioCtx.createAnalyser(); an.fftSize = 256; audioCtx.createMediaStreamSource(stream).connect(an);
+    var data = new Uint8Array(an.frequencyBinCount);
+    (function loop() { an.getByteFrequencyData(data); var v = 0; for (var i = 0; i < data.length; i++) v += data[i]; v = v / data.length / 255; $("micLvl").style.transform = "scale(" + (1 + v * 1.6).toFixed(2) + ")"; lvlRaf = requestAnimationFrame(loop); })();
+  } catch (e) {}
+}
+function listen() {
+  if (listening) { stopListening(); setMicState("Micrófono detenido."); return; }
+  if (!SR) { setMicState("Este navegador no reconoce voz. Usa Chrome o Edge, o escribe tu pregunta."); toast("Micrófono", "Reconocimiento de voz no disponible en este navegador."); return; }
+  if (!window.isSecureContext) { setMicState("Abre la presentación desde http://127.0.0.1:4174/presentacion.html para usar el micrófono."); return; }
+  stopSpeak();
+  var media = navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? navigator.mediaDevices.getUserMedia({ audio: true }) : Promise.resolve(null);
+  media.then(function (stream) {
+    micStream = stream; if (stream) meter(stream);
+    rec = new SR(); rec.lang = "es-CO"; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+    var finalText = "";
+    rec.onresult = function (ev) {
+      var interim = "";
+      for (var i = ev.resultIndex; i < ev.results.length; i++) { if (ev.results[i].isFinal) finalText += ev.results[i][0].transcript; else interim += ev.results[i][0].transcript; }
+      $("askInput").value = (finalText + " " + interim).trim();
+    };
+    rec.onerror = function (ev) {
+      var msg = { "not-allowed": "Permiso de micrófono denegado. Actívalo en el candado de la barra de direcciones.", "no-speech": "No te escuché. Pulsa el micrófono e inténtalo de nuevo.", "network": "El reconocimiento de voz necesita internet.", "audio-capture": "No se encontró un micrófono." }[ev.error] || ("Error del micrófono: " + ev.error);
+      setMicState(msg);
+    };
+    rec.onend = function () { var q = $("askInput").value.trim(); stopListening(); if (q) { setMicState(""); ask(q); } };
+    rec.start(); listening = true; $("micBtn").classList.add("rec"); setMicState("Te escucho… habla ahora.");
+    setExpr("surprised"); setTimeout(function () { if (listening) setExpr("neutral"); }, 700);
+  }).catch(function () { setMicState("Permiso de micrófono denegado. Actívalo en el candado de la barra de direcciones."); });
+}
+
+/* =====================================================================
+   9. OVERLAYS, EVENTOS Y DEMO EN VIVO
+   ===================================================================== */
+function closeOverlays() { Array.prototype.forEach.call(document.querySelectorAll(".overlay"), function (o) { o.classList.remove("show"); }); }
+function openChapters() {
+  closeOverlays();
+  $("chapList").innerHTML = CHAPTERS.map(function (c, i) { return '<button class="chap-item" data-ch="' + i + '"><span class="n">' + (i === 0 ? "PRÓLOGO" : "CAPÍTULO " + i) + '</span><b>' + esc(c.title.replace(/^Prólogo · /, "")) + '</b><span>' + esc(c.desc) + '</span></button>'; }).join("");
+  $("chaptersOv").classList.add("show");
+}
+function openEvidence() {
+  closeOverlays();
+  $("evList").innerHTML = CONTROLS.concat(FINDINGS).map(function (x) { var got = state.evidence[x.id]; return '<div class="ev-item' + (got ? "" : " locked") + '"><span class="id">' + x.id + (x.level ? " · " + x.level : " · control efectivo") + '</span><b>' + (got ? esc(x.t) : "Sin descubrir") + '</b><span>' + (got ? esc(x.ev || x.cond) : "Avanza en la historia para registrarla.") + '</span></div>'; }).join("");
+  $("evidenceOv").classList.add("show");
+}
+document.addEventListener("click", function (e) {
+  var t = e.target.closest("[data-close]"); if (t) { closeOverlays(); return; }
+  var ch = e.target.closest("[data-ch]"); if (ch) { start(CHAPTERS[+ch.dataset.ch].start); return; }
+  var demo = e.target.closest("[data-demo]");
+  if (demo) {
+    var out = demo.parentNode.querySelector(".demo-out"); out.textContent = "Consultando el servidor local…";
+    fetch("/api/inspect-links", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ links: ["http://192.168.1.1/admin", "http://127.0.0.1:4174/", "http://user:pass@example.com", "http://example.com:8080/"] }) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { out.textContent = j.links.map(function (l) { return (l.error ? "🛡 " : "⚠ ") + l.inputUrl + "\n   → " + (l.error || ("abierto: HTTP " + l.status)); }).join("\n"); })
+      .catch(function () { out.textContent = "Servidor no disponible: abre la presentación con npm start en http://127.0.0.1:4174/presentacion.html"; });
+  }
+});
+$("dialog").addEventListener("click", function (e) { if (e.target.closest(".dlg-ctrl")) return; next(); });
+$("btnBack").onclick = back;
+$("btnAuto").onclick = function () { state.auto = !state.auto; updateHud(); if (state.auto && lineDone) next(); };
+$("btnSkip").onclick = skipChapter;
+$("btnVoice").onclick = function () { state.voice = !state.voice; store("voice", state.voice); if (!state.voice) stopSpeak(); updateHud(); toast("Voz de Ada", state.voice ? "Activada" : "Silenciada", state.voice); };
+$("btnAsk").onclick = function () { if ($("stage").classList.contains("asking")) closeAsk(); else openAsk(); };
+$("btnChapters").onclick = openChapters;
+$("btnExplain").onclick = function () { openExplain(0); };
+$("btnEvidence").onclick = openEvidence;
+$("btnFull").onclick = function () { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(function () {}); };
+$("mStart").onclick = function () { start(0); };
+$("mChapters").onclick = openChapters;
+$("mExplain").onclick = function () { openExplain(0); };
+$("mAsk").onclick = openAsk;
+$("mLive").onclick = function () { window.open("index.html", "_blank", "noopener"); };
+$("fAsk").onclick = openAsk;
+$("fExplain").onclick = function () { $("finalScreen").classList.remove("show"); openExplain(0); };
+$("fRestart").onclick = function () { state.xp = 0; state.answered = {}; state.evidence = {}; start(0); };
+$("askClose").onclick = closeAsk;
+$("micBtn").onclick = listen;
+$("askForm").onsubmit = function (e) { e.preventDefault(); ask($("askInput").value); };
+document.addEventListener("keydown", function (e) {
+  var inInput = e.target.tagName === "INPUT";
+  if (e.key === "Escape") { if (document.querySelector(".overlay.show")) closeOverlays(); else if ($("stage").classList.contains("asking")) closeAsk(); return; }
+  if (inInput) return;
+  var k = e.key.toLowerCase();
+  if ($("titleScreen").classList.contains("show")) { if (e.key === "Enter") start(0); }
+  else if (!document.querySelector(".overlay.show") && !$("stage").classList.contains("asking") && !$("finalScreen").classList.contains("show")) {
+    if (e.key === " " || e.key === "Enter" || e.key === "ArrowRight") { e.preventDefault(); next(); }
+    else if (e.key === "ArrowLeft") back();
+    else if (k === "a") $("btnAuto").click();
+    else if (/^[1-3]$/.test(e.key) && $("choices").classList.contains("show")) { var b = $("choices").querySelectorAll(".choice")[+e.key - 1]; if (b && !b.disabled) b.click(); }
+  }
+  if (k === "v") $("btnVoice").click();
+  else if (k === "m") $("btnAsk").click();
+  else if (k === "e") openExplain(0);
+  else if (k === "c") openChapters();
+  else if (k === "f") $("btnFull").click();
+});
+
+/* ---------- Inicio ---------- */
+setScene("oficina"); setExpr("happy"); updateHud();
+if (!SR) $("titleNote").textContent = "Tu navegador no reconoce voz: Ada hablará, pero las preguntas serán por texto. Para usar el micrófono abre esta página en Chrome o Edge.";
+else if (location.protocol === "file:") $("titleNote").textContent = "Para usar el micrófono y la IA, ejecuta npm start y abre http://127.0.0.1:4174/presentacion.html en Chrome o Edge.";
+})();
+</script>
+</body>
+</html>

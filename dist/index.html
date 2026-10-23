@@ -1,0 +1,1804 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#091514">
+  <meta name="description" content="SIGMA-F: agente local para verificar señales de fraude digital con evidencia, OCR y fuentes oficiales.">
+  <title>SIGMA-F | Inteligencia de señales de fraude</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=IBM+Plex+Mono:wght@400;500;600&family=Poltawski+Nowy:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <link rel="icon" type="image/svg+xml" href="sigma-f-mark.svg">
+  <style>
+    :root {
+      --bg: #091514;
+      --bg-soft: #0d201d;
+      --panel: #112722;
+      --panel-2: #15312a;
+      --line: rgba(201, 222, 207, .16);
+      --line-strong: rgba(201, 222, 207, .3);
+      --text: #eee6d7;
+      --muted: #aec0b5;
+      --muted-2: #8ca99f;
+      --mint: #72d5b7;
+      --mint-2: #45b997;
+      --cyan: #9cd7cb;
+      --amber: #d6a760;
+      --red: #d87866;
+      --shadow: 0 18px 55px rgba(0, 0, 0, .24);
+      --font-body: "DM Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+      --font-display: "Poltawski Nowy", Georgia, serif;
+      --font-data: "IBM Plex Mono", "Cascadia Mono", Consolas, monospace;
+      font-family: var(--font-body);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--bg);
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    a { color: inherit; text-decoration: none; }
+    :focus-visible { outline: 3px solid rgba(125, 224, 189, .7); outline-offset: 3px; }
+
+    .app-shell { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 252px;
+      position: fixed;
+      inset: 0 auto 0 0;
+      display: flex;
+      flex-direction: column;
+      padding: 26px 18px 20px;
+      background: rgba(5, 18, 21, .9);
+      border-right: 1px solid var(--line);
+      z-index: 3;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; padding: 0 8px 28px; }
+    .brand-mark {
+      width: 42px; height: 42px; display: grid; place-items: center;
+      color: #06120f; background: var(--mint); border-radius: 14px;
+      box-shadow: 0 0 0 7px rgba(125, 224, 189, .08);
+    }
+    .brand-mark svg { width: 25px; height: 25px; }
+    .brand-name { font-size: 1.05rem; font-weight: 800; letter-spacing: -.04em; }
+    .brand-name span { color: var(--mint); }
+    .brand-caption { color: var(--muted); font-size: .75rem; margin-top: 2px; }
+    .nav-label { color: var(--muted-2); font-size: .68rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; padding: 0 12px 10px; }
+    .nav { display: grid; gap: 6px; }
+    .nav a {
+      display: flex; align-items: center; gap: 12px; padding: 12px 13px;
+      color: var(--muted); border: 1px solid transparent; border-radius: 12px;
+      transition: .2s ease;
+    }
+    .nav a:hover, .nav a.active { color: var(--text); background: rgba(125, 224, 189, .08); border-color: rgba(125, 224, 189, .2); }
+    .nav a.active { box-shadow: inset 3px 0 var(--mint); }
+    .nav-icon { width: 18px; height: 18px; display: grid; place-items: center; color: currentColor; }
+    .nav-icon svg { width: 17px; height: 17px; }
+    .sidebar-bottom {
+      margin-top: auto; padding: 16px; border: 1px solid var(--line);
+      border-radius: 16px; background: #102720;
+    }
+    .status-line { display: flex; align-items: center; gap: 8px; color: var(--mint); font-weight: 700; font-size: .82rem; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 5px rgba(125, 224, 189, .1); }
+    .sidebar-bottom p { color: var(--muted); font-size: .8rem; line-height: 1.5; margin: 10px 0 0; }
+
+    main { width: calc(100% - 252px); margin-left: 252px; padding: 32px 42px 56px; }
+    .topbar { max-width: 1320px; margin: 0 auto 30px; display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; }
+    .eyebrow { color: var(--mint); font-size: .72rem; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; margin: 0 0 8px; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { font-size: clamp(2.1rem, 4vw, 3.65rem); letter-spacing: -.065em; line-height: 1.02; margin-bottom: 12px; max-width: 720px; }
+    h2 { font-size: 1.18rem; letter-spacing: -.025em; margin-bottom: 5px; }
+    h3 { font-size: .98rem; margin-bottom: 4px; }
+    .topbar-copy { color: var(--muted); max-width: 710px; margin: 0; }
+    .topbar-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px;
+      color: var(--muted); background: rgba(255,255,255,.025); border: 1px solid var(--line); border-radius: 999px;
+      font-size: .78rem; white-space: nowrap;
+    }
+    .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); }
+    .pill.success { color: var(--mint); }
+    .pill.success .dot { background: var(--mint); }
+
+    .page { max-width: 1320px; margin: 0 auto; }
+    .hero {
+      display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 22px; align-items: stretch;
+      padding: 30px; margin-bottom: 20px; overflow: hidden; position: relative;
+      background: #10251f;
+      border: 1px solid rgba(125, 224, 189, .25); border-radius: 24px; box-shadow: var(--shadow);
+    }
+    .hero::after {
+      content: ""; position: absolute; width: 390px; height: 390px; right: 80px; top: -260px;
+      border: 1px solid rgba(125, 224, 189, .13); border-radius: 50%; box-shadow: 0 0 0 34px rgba(125,224,189,.035), 0 0 0 72px rgba(125,224,189,.025);
+      pointer-events: none;
+    }
+    .hero h2 { font-size: clamp(1.65rem, 3vw, 2.6rem); line-height: 1.08; letter-spacing: -.06em; max-width: 740px; margin-bottom: 13px; position: relative; z-index: 1; }
+    .hero-copy { max-width: 670px; color: #c3dcda; margin: 0 0 22px; position: relative; z-index: 1; }
+    .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; position: relative; z-index: 1; }
+    .button {
+      border: 0; border-radius: 11px; padding: 11px 15px; color: #06120f; background: var(--mint);
+      font-weight: 800; font-size: .87rem; transition: transform .2s ease, filter .2s ease, background .2s ease;
+    }
+    .button:hover { transform: translateY(-1px); filter: brightness(1.06); }
+    .button.secondary { color: var(--text); background: rgba(255,255,255,.07); border: 1px solid var(--line-strong); }
+    .button.ghost { color: var(--muted); background: transparent; border: 1px solid var(--line); }
+    .button.warn { color: #2c2110; background: var(--amber); }
+    .hero-score {
+      display: flex; flex-direction: column; justify-content: center; position: relative; z-index: 1;
+      padding: 22px; border: 1px solid rgba(125,224,189,.22); border-radius: 18px; background: rgba(4, 20, 24, .35);
+    }
+    .small-label { color: var(--muted-2); font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; font-weight: 800; }
+    .hero-risk { display: flex; align-items: baseline; gap: 7px; margin: 7px 0 2px; }
+    .hero-risk strong { font-size: 3.7rem; line-height: 1; letter-spacing: -.08em; color: var(--mint); }
+    .hero-risk span { color: var(--muted); font-size: .9rem; }
+    .hero-score p { color: var(--muted); font-size: .82rem; margin: 5px 0 14px; }
+    .meter { height: 8px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
+    .meter span { display: block; height: 100%; border-radius: inherit; background: var(--mint); }
+
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 22px; }
+    .card, .panel { background: rgba(13, 34, 39, .8); border: 1px solid var(--line); border-radius: 18px; }
+    .stat-card { padding: 19px; min-height: 132px; position: relative; overflow: hidden; }
+    .stat-card::after { content: ""; position: absolute; width: 74px; height: 74px; right: -24px; bottom: -27px; border: 1px solid rgba(125,224,189,.12); border-radius: 50%; }
+    .stat-top { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: .82rem; }
+    .stat-icon { width: 29px; height: 29px; display: grid; place-items: center; border-radius: 9px; background: rgba(125,224,189,.1); color: var(--mint); }
+    .stat-icon svg { width: 16px; height: 16px; }
+    .stat-value { display: block; font-size: 1.75rem; line-height: 1; margin-top: 17px; letter-spacing: -.055em; }
+    .stat-note { color: var(--muted-2); font-size: .75rem; margin: 7px 0 0; }
+    .stat-note.good { color: var(--mint); }
+    .stat-note.bad { color: var(--red); }
+
+    .section-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin: 32px 0 12px; }
+    .section-heading p { color: var(--muted); font-size: .84rem; margin: 0; }
+    .section-heading .counter { color: var(--muted); background: rgba(255,255,255,.04); padding: 7px 10px; border-radius: 8px; font-size: .75rem; white-space: nowrap; }
+
+    .workbench { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(340px, .92fr); gap: 18px; }
+    .panel { padding: 22px; }
+    .panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 17px; }
+    .panel-head p { color: var(--muted); font-size: .82rem; margin: 0; }
+    .panel-tag { color: var(--cyan); font-size: .72rem; padding: 6px 9px; border: 1px solid rgba(95,200,228,.2); background: rgba(95,200,228,.07); border-radius: 8px; white-space: nowrap; }
+    .message-label { display: flex; justify-content: space-between; color: var(--muted); font-size: .82rem; margin-bottom: 8px; }
+    textarea {
+      width: 100%; min-height: 139px; resize: vertical; color: var(--text); background: #09191e;
+      border: 1px solid var(--line); border-radius: 12px; padding: 14px; line-height: 1.55;
+    }
+    textarea::placeholder { color: var(--muted-2); }
+    textarea:focus, select:focus, input:focus { border-color: rgba(125,224,189,.65); outline: none; box-shadow: 0 0 0 3px rgba(125,224,189,.1); }
+    .sample-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 16px; }
+    .sample {
+      color: var(--muted); background: rgba(255,255,255,.035); border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; font-size: .74rem;
+    }
+    .sample:hover { color: var(--text); border-color: var(--line-strong); }
+    .analyze-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .privacy-note { color: var(--muted-2); font-size: .72rem; margin: 0; }
+    .result-card { background: var(--panel-2); }
+    .result-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .risk-badge { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border-radius: 999px; font-weight: 800; font-size: .76rem; }
+    .risk-badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    .risk-badge.high { color: var(--red); background: rgba(255,127,125,.1); }
+    .risk-badge.medium { color: var(--amber); background: rgba(246,189,100,.1); }
+    .risk-badge.low { color: var(--mint); background: rgba(125,224,189,.1); }
+    .result-score { margin: 22px 0 15px; display: flex; align-items: flex-end; gap: 10px; }
+    .result-score strong { font-size: 3.6rem; line-height: .9; letter-spacing: -.09em; }
+    .result-score span { color: var(--muted); font-size: .85rem; padding-bottom: 4px; }
+    .result-card h3 { font-size: 1.35rem; margin-bottom: 5px; letter-spacing: -.04em; }
+    .result-copy { color: var(--muted); font-size: .82rem; margin-bottom: 18px; }
+    .signal-list { display: grid; gap: 8px; margin: 0 0 18px; padding: 0; list-style: none; }
+    .signal-list li { display: flex; gap: 9px; align-items: flex-start; color: #c6d9d7; font-size: .8rem; }
+    .signal-icon { flex: 0 0 auto; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 6px; color: var(--red); background: rgba(255,127,125,.1); font-size: .72rem; }
+    .recommendation { border-left: 3px solid var(--amber); padding: 10px 12px; color: #f1ddba; background: rgba(246,189,100,.07); border-radius: 0 10px 10px 0; font-size: .8rem; }
+    .recommendation strong { display: block; color: var(--amber); margin-bottom: 3px; }
+
+    .analytics-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(255px, .7fr) minmax(270px, .8fr); gap: 18px; }
+    .chart-wrap { height: 250px; margin-top: 14px; }
+    svg.chart { width: 100%; height: 100%; overflow: visible; }
+    .chart-grid { stroke: rgba(157,217,207,.12); stroke-width: 1; }
+    .chart-axis { fill: var(--muted-2); font-size: 11px; }
+    .chart-line { fill: none; stroke: var(--mint); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .chart-area { fill: rgba(114, 213, 183, .12); }
+    .chart-dot { fill: var(--bg); stroke: var(--mint); stroke-width: 3; }
+    .chart-dot:hover { fill: var(--mint); }
+    .chart-empty { fill: var(--muted); font-size: 14px; }
+    .donut-area { display: grid; place-items: center; padding: 10px 0 3px; }
+    .donut {
+      width: 168px; height: 168px; border-radius: 50%; position: relative;
+      background: conic-gradient(var(--red) 0 42%, var(--amber) 42% 67%, var(--mint) 67% 100%);
+    }
+    .donut::after { content: ""; position: absolute; inset: 28px; background: var(--panel); border-radius: 50%; }
+    .donut-center { position: absolute; inset: 0; display: grid; place-items: center; z-index: 1; text-align: center; }
+    .donut-center strong { display: block; font-size: 1.8rem; letter-spacing: -.07em; }
+    .donut-center span { display: block; color: var(--muted); font-size: .7rem; margin-top: -35px; }
+    .legend { display: grid; gap: 9px; margin-top: 14px; }
+    .legend-row { display: flex; justify-content: space-between; color: var(--muted); font-size: .78rem; }
+    .legend-label { display: flex; align-items: center; gap: 8px; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .legend-dot.red { background: var(--red); } .legend-dot.amber { background: var(--amber); } .legend-dot.mint { background: var(--mint); }
+    .priority-list { display: grid; gap: 10px; }
+    .priority-item { display: grid; grid-template-columns: 32px minmax(0,1fr) auto; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.02); }
+    .priority-rank { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; color: var(--amber); background: rgba(246,189,100,.1); font-weight: 800; font-size: .8rem; }
+    .priority-item strong { display: block; font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .priority-item small { display: block; color: var(--muted-2); font-size: .7rem; margin-top: 2px; }
+    .priority-value { color: var(--red); font-size: .8rem; font-weight: 800; }
+
+    .reports-panel { padding-bottom: 10px; }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+    .filter-control { min-width: 138px; flex: 1; }
+    .filter-control label { display: block; color: var(--muted-2); font-size: .69rem; text-transform: uppercase; letter-spacing: .1em; font-weight: 800; margin: 0 0 5px 2px; }
+    select, input[type="date"] {
+      width: 100%; color: var(--text); background: #09191e; border: 1px solid var(--line); border-radius: 9px; padding: 9px 10px;
+    }
+    select option { background: #0b2025; }
+    .toolbar-actions { display: flex; gap: 8px; align-self: flex-end; margin-left: auto; }
+    .toolbar-actions .button { padding: 9px 12px; font-size: .78rem; }
+    .table-scroll { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; min-width: 830px; }
+    th { color: var(--muted-2); text-align: left; font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 800; padding: 11px 10px; border-bottom: 1px solid var(--line); }
+    td { color: #c2d6d4; font-size: .8rem; padding: 13px 10px; border-bottom: 1px solid rgba(157,217,207,.08); white-space: nowrap; }
+    tbody tr:hover { background: rgba(125,224,189,.035); }
+    .table-muted { color: var(--muted-2); }
+    .table-risk { display: inline-flex; gap: 5px; align-items: center; font-weight: 800; font-size: .74rem; }
+    .table-risk::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .table-risk.high { color: var(--red); } .table-risk.medium { color: var(--amber); } .table-risk.low { color: var(--mint); }
+    .channel-chip { color: var(--cyan); background: rgba(95,200,228,.08); padding: 4px 7px; border-radius: 6px; font-size: .74rem; }
+    .empty { color: var(--muted); text-align: center; padding: 34px 12px; }
+    .table-footer { display: flex; justify-content: space-between; gap: 12px; color: var(--muted-2); font-size: .75rem; padding: 12px 10px 2px; }
+
+    .method-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 18px; }
+    .method-copy { color: var(--muted); font-size: .85rem; max-width: 700px; }
+    .flow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .flow-step { display: flex; align-items: center; gap: 9px; color: #c6d9d7; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.02); font-size: .77rem; }
+    .flow-step b { color: var(--mint); font-size: .72rem; }
+    .method-list { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
+    .method-list li { display: flex; gap: 9px; color: var(--muted); font-size: .8rem; }
+    .method-list li::before { content: "✓"; color: var(--mint); font-weight: 800; }
+    footer { max-width: 1320px; margin: 26px auto 0; display: flex; justify-content: space-between; gap: 20px; color: var(--muted-2); font-size: .74rem; }
+    .toast { position: fixed; right: 24px; bottom: 24px; transform: translateY(18px); opacity: 0; pointer-events: none; color: #06120f; background: var(--mint); border-radius: 10px; padding: 11px 14px; font-size: .8rem; font-weight: 800; transition: .25s ease; z-index: 10; }
+    .toast.visible { opacity: 1; transform: translateY(0); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+    @media (max-width: 1180px) {
+      main { padding-left: 28px; padding-right: 28px; }
+      .analytics-grid { grid-template-columns: minmax(0, 1.3fr) minmax(260px, .7fr); }
+      .priority-panel { grid-column: 1 / -1; }
+    }
+    @media (max-width: 860px) {
+      .sidebar { width: 74px; padding: 22px 10px; align-items: center; }
+      .brand { padding: 0 0 28px; } .brand-copy, .nav-label, .nav a > span:not(.nav-icon), .sidebar-bottom { display: none; }
+      .brand-mark { width: 43px; height: 43px; }
+      .nav { width: 100%; } .nav a { justify-content: center; padding: 13px 8px; }
+      main { width: calc(100% - 74px); margin-left: 74px; }
+      .topbar { flex-direction: column; } .topbar-actions { justify-content: flex-start; }
+      .hero { grid-template-columns: 1fr; } .hero-score { max-width: 360px; }
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .workbench, .method-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      main { padding: 24px 15px 42px; }
+      h1 { font-size: 2.4rem; }
+      .hero { padding: 22px; border-radius: 18px; }
+      .stats, .analytics-grid { grid-template-columns: 1fr; }
+      .priority-panel { grid-column: auto; }
+      .panel { padding: 18px; }
+      .analyze-row, footer { align-items: flex-start; flex-direction: column; }
+      .toolbar-actions { width: 100%; margin-left: 0; }
+      .toolbar-actions .button { flex: 1; }
+      .hero-actions .button { flex: 1; }
+    }
+    /* Sigma-F visual system: evidence desk, not generic cyber dashboard. */
+    body { font-family: var(--font-body); font-variant-numeric: tabular-nums; }
+    h1, h2, h3 { font-family: var(--font-display); font-weight: 500; text-wrap: balance; }
+    p, li, label, button, input, select, textarea { text-wrap: pretty; }
+    .sidebar { width: 220px; padding: 24px 16px 18px; background: #0b1b19; border-right-color: rgba(201,222,207,.2); }
+    .brand { gap: 11px; padding: 0 8px 28px; }
+    .brand-mark { width: 40px; height: 40px; border-radius: 11px; background: var(--mint); box-shadow: 0 0 0 5px rgba(114,213,183,.08); }
+    .brand-name { font-family: var(--font-display); font-size: 1.08rem; letter-spacing: -.025em; }
+    .brand-caption { color: var(--muted-2); font-size: .75rem; }
+    .nav-label { color: var(--muted-2); font-size: .7rem; letter-spacing: .14em; padding: 0 12px 9px; }
+    .nav { gap: 4px; }
+    .nav a { padding: 11px 12px; border-radius: 8px; transition: background .18s ease, color .18s ease, border-color .18s ease; }
+    .nav a:hover, .nav a.active { background: #122c26; border-color: rgba(114,213,183,.25); }
+    .nav a.active { box-shadow: inset 2px 0 var(--mint); }
+    .sidebar-bottom { padding: 14px; border-radius: 11px; border-color: rgba(201,222,207,.2); }
+    .status-line { font-size: .78rem; }
+    .status-dot { width: 7px; height: 7px; box-shadow: 0 0 0 4px rgba(114,213,183,.09); }
+    .sidebar-bottom p { font-size: .76rem; line-height: 1.55; }
+    main { width: calc(100% - 220px); margin-left: 220px; padding: 28px 38px 58px; }
+    .topbar { max-width: 1380px; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+    .eyebrow { color: var(--muted-2); font-size: .66rem; letter-spacing: .14em; }
+    h1 { font-size: clamp(2.35rem, 4.2vw, 4.1rem); letter-spacing: -.035em; line-height: .98; max-width: 17ch; margin-bottom: 14px; }
+    h2 { font-size: 1.25rem; letter-spacing: -.018em; }
+    h3 { letter-spacing: -.02em; }
+    .topbar-copy { max-width: 54ch; color: var(--muted); font-size: .96rem; line-height: 1.6; }
+    .topbar-actions { align-self: flex-start; padding-top: 6px; }
+    .pill { border-radius: 7px; padding: 7px 10px; background: transparent; border-color: var(--line); font-size: .74rem; }
+    .page { max-width: 1380px; }
+    .hero { grid-template-columns: minmax(0, 1.25fr) minmax(260px, .75fr); gap: 20px; min-height: 238px; padding: 26px; margin-bottom: 14px; border-radius: 16px; background: #10251f; border-color: rgba(114,213,183,.25); box-shadow: var(--shadow); }
+    .hero::after { width: 330px; height: 330px; right: 70px; top: -228px; border-color: rgba(114,213,183,.14); box-shadow: 0 0 0 28px rgba(114,213,183,.035), 0 0 0 58px rgba(114,213,183,.025); }
+    .hero::before { content: ""; position: absolute; width: 170px; height: 170px; right: 186px; bottom: -128px; border: 1px solid rgba(214,167,96,.14); border-radius: 50%; pointer-events: none; }
+    .hero h2 { font-size: clamp(1.75rem, 2.9vw, 2.75rem); line-height: 1.02; letter-spacing: -.028em; max-width: 15ch; margin-bottom: 12px; }
+    .hero-copy { max-width: 52ch; color: #c7d4c9; margin-bottom: 20px; font-size: .9rem; }
+    .hero-actions { gap: 8px; }
+    .button { border-radius: 8px; padding: 10px 14px; color: #06120f; font-size: .82rem; transition: transform .18s ease, filter .18s ease, background .18s ease, border-color .18s ease; }
+    .button:hover { transform: translateY(-1px); filter: none; }
+    .button:active { transform: translateY(1px) scale(.985); }
+    .button.secondary { background: #1b352d; border-color: rgba(201,222,207,.28); }
+    .button.ghost { border-color: var(--line-strong); }
+    .hero-score { padding: 20px; border-radius: 12px; background: #0b1c1a; border-color: rgba(201,222,207,.22); }
+    .small-label { color: var(--muted-2); font-size: .75rem; letter-spacing: .1em; }
+    .hero-risk strong { font-family: var(--font-data); font-size: 3.4rem; font-weight: 500; letter-spacing: -.08em; color: var(--mint); }
+    .hero-score p { font-size: .78rem; margin: 5px 0 13px; }
+    .meter { height: 7px; border-radius: 3px; background: #1c302a; }
+    .meter span { border-radius: 3px; }
+    .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-bottom: 18px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .card, .panel { background: var(--panel); border-color: var(--line); border-radius: 14px; }
+    .stat-card { min-height: 104px; padding: 15px 18px; border: 0; border-radius: 0; background: transparent; }
+    .stat-card + .stat-card { border-left: 1px solid var(--line); }
+    .stat-card::after { display: none; }
+    .stat-top { font-size: .76rem; color: var(--muted); }
+    .stat-icon { width: 26px; height: 26px; border-radius: 7px; background: #18372f; }
+    .stat-value { font-family: var(--font-data); font-size: 1.5rem; font-weight: 500; margin-top: 13px; letter-spacing: -.05em; }
+    .stat-note { font-size: .75rem; margin-top: 6px; }
+    .section-heading { margin: 30px 0 11px; }
+    .section-heading p { max-width: 58ch; font-size: .82rem; }
+    .section-heading .counter { border: 1px solid var(--line); border-radius: 6px; background: transparent; padding: 6px 9px; }
+    .workbench { gap: 12px; }
+    .panel { padding: 21px; }
+    .panel-head { margin-bottom: 15px; }
+    .panel-head p { font-size: .78rem; }
+    .panel-tag { border-radius: 5px; padding: 5px 8px; background: #15352d; border-color: rgba(156,215,203,.25); color: var(--cyan); font-size: .75rem; }
+    .message-label { font-size: .78rem; }
+    textarea { min-height: 145px; background: #0b1918; border-radius: 8px; border-color: rgba(201,222,207,.2); padding: 13px; font-size: .88rem; line-height: 1.55; }
+    textarea:focus, select:focus, input:focus { border-color: rgba(114,213,183,.75); box-shadow: 0 0 0 3px rgba(114,213,183,.12); }
+    .sample-row { gap: 6px; margin: 10px 0 14px; }
+    .sample { border-radius: 6px; padding: 6px 9px; background: #142c26; border-color: rgba(201,222,207,.18); font-size: .74rem; }
+    .analyze-row { align-items: flex-end; }
+    .privacy-note { max-width: 33ch; font-size: .75rem; }
+    .result-card { background: var(--panel-2); }
+    .risk-badge { border-radius: 6px; padding: 6px 9px; font-size: .74rem; }
+    .result-score { margin: 19px 0 13px; }
+    .result-score strong { font-family: var(--font-data); font-size: 3.25rem; font-weight: 500; }
+    .result-card h3 { font-size: 1.32rem; }
+    .result-copy, .signal-list li { font-size: .78rem; }
+    .signal-icon { border-radius: 5px; background: #3a2925; }
+    .recommendation { border: 1px solid rgba(214,167,96,.28); border-radius: 8px; padding: 10px 12px; background: #2b271d; color: #dfcfac; }
+    .recommendation strong { color: var(--amber); }
+    .analytics-grid { gap: 12px; }
+    .chart-wrap { height: 236px; margin-top: 12px; }
+    .chart-grid { stroke: rgba(201,222,207,.11); }
+    .chart-axis { fill: var(--muted-2); font-family: var(--font-data); font-size: 10px; }
+    .chart-line { stroke: var(--mint); stroke-width: 2.5; }
+    .chart-dot { fill: var(--panel); stroke: var(--mint); stroke-width: 2.5; }
+    .priority-list { gap: 8px; }
+    .priority-item { padding: 9px; border-radius: 8px; background: #142b25; border-color: rgba(201,222,207,.16); }
+    .priority-rank { width: 28px; height: 28px; border-radius: 7px; background: #342d1e; color: var(--amber); }
+    .priority-item strong { font-size: .76rem; }
+    .priority-item small { font-size: .73rem; }
+    .reports-panel { padding-bottom: 9px; }
+    .toolbar { gap: 7px; margin-bottom: 14px; }
+    .filter-control { min-width: 136px; }
+    .filter-control label { font-size: .7rem; letter-spacing: .08em; }
+    select, input[type="date"] { border-radius: 7px; padding: 9px 10px; background: #0b1918; border-color: rgba(201,222,207,.2); font-size: .78rem; }
+    .toolbar-actions .button { border-radius: 7px; }
+    th { font-family: var(--font-data); font-size: .7rem; letter-spacing: .08em; padding: 10px; }
+    td { font-size: .78rem; padding: 12px 10px; border-bottom-color: rgba(201,222,207,.1); }
+    .channel-chip { border-radius: 5px; padding: 4px 6px; background: #18352d; color: var(--cyan); }
+    .table-footer { font-family: var(--font-data); font-size: .75rem; }
+    .method-grid { gap: 12px; }
+    .method-copy { font-size: .82rem; max-width: 62ch; }
+    .flow { gap: 6px; margin-top: 16px; }
+    .flow-step { border-radius: 7px; padding: 8px 10px; background: #142c26; font-size: .75rem; }
+    .flow-step b { color: var(--mint); font-family: var(--font-data); font-size: .75rem; }
+    .method-list { gap: 8px; }
+    .method-list li { font-size: .78rem; }
+    footer { max-width: 1380px; margin-top: 22px; font-family: var(--font-data); font-size: .75rem; }
+    .toast { right: 20px; bottom: 20px; border-radius: 7px; background: var(--mint); font-size: .76rem; }
+    .stat-value, .hero-risk strong, .result-score strong, .priority-value, .table-risk { font-variant-numeric: tabular-nums; }
+
+    @media (max-width: 1180px) {
+      main { padding-left: 26px; padding-right: 26px; }
+      .analytics-grid { grid-template-columns: minmax(0, 1.2fr) minmax(250px, .8fr); }
+      .priority-panel { grid-column: 1 / -1; }
+    }
+    @media (max-width: 860px) {
+      .sidebar { width: 70px; padding: 22px 9px; align-items: center; }
+      .brand { padding: 0 0 24px; }
+      .brand-copy, .nav-label, .nav a > span:not(.nav-icon), .sidebar-bottom { display: none; }
+      .brand-mark { width: 42px; height: 42px; }
+      .nav { width: 100%; }
+      .nav a { justify-content: center; padding: 12px 8px; }
+      main { width: calc(100% - 70px); margin-left: 70px; }
+      .topbar { flex-direction: column; }
+      .topbar-actions { justify-content: flex-start; padding-top: 0; }
+      .hero { grid-template-columns: 1fr; }
+      .hero-score { max-width: 380px; }
+      .workbench, .method-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      main { padding: 22px 14px 42px; }
+      h1 { font-size: 2.45rem; }
+      .topbar { margin-bottom: 18px; }
+      .hero { padding: 20px; border-radius: 12px; }
+      .stats, .analytics-grid { grid-template-columns: 1fr; }
+      .stat-card + .stat-card { border-left: 0; border-top: 1px solid var(--line); }
+      .priority-panel { grid-column: auto; }
+      .panel { padding: 17px; }
+      .analyze-row, footer { align-items: flex-start; flex-direction: column; }
+      .toolbar-actions { width: 100%; margin-left: 0; }
+      .toolbar-actions .button { flex: 1; }
+      .hero-actions .button { flex: 1; }
+    }
+
+    /* Evidence agents: a guided investigation desk that stays explainable. */
+    .agent-suite { position: relative; }
+    .agent-layout { display: grid; grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr); gap: 12px; }
+    .agent-panel { min-width: 0; }
+    .agent-panel .panel-head { align-items: flex-start; }
+    .agent-input-grid { display: grid; gap: 13px; }
+    .agent-field { display: grid; gap: 6px; }
+    .agent-field > label, .agent-field > .field-label { color: var(--muted); font-size: .78rem; font-weight: 600; }
+    .agent-field input[type="email"], .agent-field input[type="text"] {
+      width: 100%; color: var(--text); background: #0b1918; border: 1px solid rgba(201,222,207,.2);
+      border-radius: 8px; padding: 11px 12px; font-size: .86rem;
+    }
+    .agent-field textarea { min-height: 132px; }
+    .agent-field small { color: var(--muted-2); font-size: .72rem; line-height: 1.45; }
+    .file-drop {
+      display: grid; gap: 5px; padding: 13px; border: 1px dashed rgba(114,213,183,.42);
+      border-radius: 9px; background: #10251f; cursor: pointer; transition: background .18s ease, border-color .18s ease;
+    }
+    .file-drop:hover { background: #15312a; border-color: var(--mint); }
+    .file-drop-title { color: var(--text); font-size: .8rem; font-weight: 700; }
+    .file-drop-copy { color: var(--muted); font-size: .72rem; }
+    .file-drop input { width: 100%; color: var(--muted); font-size: .76rem; }
+    .file-drop input::file-selector-button { color: #06120f; background: var(--mint); border: 0; border-radius: 6px; padding: 7px 9px; margin-right: 8px; font: inherit; font-weight: 700; cursor: pointer; }
+    .preview-frame { display: none; margin-top: 2px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #091514; }
+    .preview-frame.visible { display: block; }
+    .preview-frame img { display: block; width: 100%; max-height: 172px; object-fit: contain; background: #091514; }
+    .agent-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+    .agent-actions .button { flex: 0 0 auto; }
+    .agent-status { min-height: 21px; color: var(--muted); font-size: .74rem; }
+    .agent-status[data-state="loading"] { color: var(--cyan); }
+    .agent-status[data-state="success"] { color: var(--mint); }
+    .agent-status[data-state="error"] { color: var(--red); }
+    .agent-output { background: #15312a; }
+    .agent-output[aria-busy="true"] { opacity: .72; }
+    .agent-score-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 15px; margin: 18px 0 14px; }
+    .agent-score { display: flex; align-items: baseline; gap: 9px; }
+    .agent-score strong { font-family: var(--font-data); font-size: 3.25rem; line-height: .9; font-weight: 500; letter-spacing: -.09em; }
+    .agent-score span { color: var(--muted); font-size: .78rem; }
+    .agent-reliability { text-align: right; }
+    .agent-reliability strong { display: block; color: var(--cyan); font-family: var(--font-data); font-size: 1.15rem; font-weight: 500; }
+    .agent-reliability span { color: var(--muted); font-size: .68rem; }
+    .agent-summary { color: var(--muted); font-size: .8rem; margin: 14px 0 18px; max-width: 62ch; }
+    .agent-checklist { display: grid; gap: 7px; margin: 0 0 17px; padding: 0; list-style: none; }
+    .agent-check { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: .76rem; }
+    .agent-check-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted-2); box-shadow: 0 0 0 4px rgba(121,152,140,.1); }
+    .agent-check[data-state="done"] { color: #c7ded1; }
+    .agent-check[data-state="done"] .agent-check-dot { background: var(--mint); box-shadow: 0 0 0 4px rgba(114,213,183,.1); }
+    .agent-check[data-state="pending"] .agent-check-dot { background: var(--amber); box-shadow: 0 0 0 4px rgba(214,167,96,.1); }
+    .agent-check[data-state="error"] { color: #e2b0a4; }
+    .agent-check[data-state="error"] .agent-check-dot { background: var(--red); box-shadow: 0 0 0 4px rgba(216,120,102,.1); }
+    .agent-section-label { color: var(--cyan); font-family: var(--font-data); font-size: .7rem; letter-spacing: .09em; text-transform: uppercase; margin: 0 0 8px; }
+    .agent-signal-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+    .agent-signal-list li { display: flex; gap: 9px; align-items: flex-start; color: #c6d9d7; font-size: .77rem; }
+    .agent-signal-list li::before { content: ""; width: 7px; height: 7px; flex: 0 0 auto; margin-top: .44em; border-radius: 50%; background: var(--amber); }
+    .agent-trace { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 18px; }
+    .trace-card { min-width: 0; padding: 10px; border: 1px solid rgba(201,222,207,.15); border-radius: 8px; background: #10251f; }
+    .trace-card span { display: block; color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
+    .trace-card strong { display: block; overflow: hidden; color: var(--text); font-family: var(--font-data); font-size: .78rem; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+    .agent-sources { margin-top: 18px; padding-top: 15px; border-top: 1px solid rgba(201,222,207,.14); }
+    .source-list { display: grid; gap: 7px; }
+    .source-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(201,222,207,.1); }
+    .source-item:last-child { border-bottom: 0; }
+    .source-item a { color: var(--text); font-size: .78rem; font-weight: 700; text-decoration: underline; text-decoration-color: rgba(114,213,183,.45); text-underline-offset: 3px; }
+    .source-item a:hover { color: var(--mint); text-decoration-color: var(--mint); }
+    .source-item p { color: var(--muted); font-size: .7rem; line-height: 1.42; margin: 3px 0 0; }
+    .source-type { color: var(--cyan); font-family: var(--font-data); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; text-align: right; white-space: nowrap; }
+    .agent-disclaimer { margin: 14px 0 0; color: var(--muted); font-size: .7rem; line-height: 1.5; }
+    .agent-empty { color: var(--muted); border: 1px dashed rgba(201,222,207,.18); border-radius: 8px; padding: 14px; font-size: .76rem; }
+    .agent-output .meter span { transition: width .45s ease; }
+    .agent-link-analysis { margin-top: 18px; padding-top: 15px; border-top: 1px solid rgba(201,222,207,.14); }
+    .link-analysis-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+    .link-analysis-card { min-width: 0; padding: 10px; border: 1px solid rgba(201,222,207,.15); border-radius: 8px; background: #10251f; }
+    .link-analysis-card span { display: block; color: var(--muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
+    .link-analysis-card strong { display: block; overflow: hidden; color: var(--text); font-size: .76rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+    .link-analysis-summary { color: var(--muted); font-size: .72rem; line-height: 1.48; margin: 9px 0 0; }
+    .link-analysis-summary a { color: var(--mint); }
+    .settings-layout { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(260px, .88fr); gap: 12px; }
+    .settings-panel { min-width: 0; }
+    .settings-form { display: grid; gap: 13px; }
+    .settings-field { display: grid; gap: 6px; }
+    .settings-field label { color: var(--muted); font-size: .78rem; font-weight: 600; }
+    .settings-field input, .settings-field select { width: 100%; color: var(--text); background: #0b1918; border: 1px solid rgba(201,222,207,.2); border-radius: 8px; padding: 11px 12px; font: inherit; font-size: .84rem; }
+    .settings-field input:focus, .settings-field select:focus { border-color: var(--mint); outline: 3px solid var(--focus); outline-offset: 1px; }
+    .settings-field small { color: var(--muted-2); font-size: .7rem; line-height: 1.45; }
+    .settings-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+    .settings-actions .button { flex: 0 0 auto; }
+    .settings-status { min-height: 21px; color: var(--muted); font-size: .74rem; }
+    .settings-status[data-state="loading"] { color: var(--cyan); }
+    .settings-status[data-state="success"] { color: var(--mint); }
+    .settings-status[data-state="error"] { color: var(--red); }
+    .settings-check { display: inline-flex; align-items: flex-start; gap: 8px; color: var(--muted); font-size: .73rem; line-height: 1.4; cursor: pointer; }
+    .settings-check input { margin-top: 2px; accent-color: var(--mint); }
+    .settings-note { display: grid; align-content: start; gap: 12px; }
+    .settings-note h3 { margin: 0; font-size: 1rem; }
+    .settings-note p { color: var(--muted); font-size: .77rem; line-height: 1.55; margin: 0; }
+    .settings-note ul { display: grid; gap: 8px; margin: 0; padding-left: 18px; color: var(--muted); font-size: .75rem; line-height: 1.45; }
+    .settings-note li::marker { color: var(--accent); }
+    .provider-help a { color: var(--mint); }
+    @media (max-width: 980px) {
+      .agent-layout { grid-template-columns: 1fr; }
+      .agent-output { min-height: auto; }
+      .settings-layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      .agent-score-row { align-items: flex-start; flex-direction: column; }
+      .agent-reliability { text-align: left; }
+      .agent-trace { grid-template-columns: 1fr; }
+      .link-analysis-grid { grid-template-columns: 1fr; }
+      .source-item { grid-template-columns: 1fr; gap: 5px; }
+      .source-type { text-align: left; }
+      .agent-actions .button { width: 100%; }
+    }
+
+    /* Verification desk: one coherent surface for local analysis and DeepSeek. */
+    :root {
+      --accent: #d6a760;
+      --accent-soft: rgba(214,167,96,.13);
+      --focus: rgba(114,213,183,.2);
+    }
+    ::selection { color: var(--bg); background: var(--mint); }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: #28463d; border: 2px solid var(--bg); border-radius: 999px; }
+    .brand-mark { background: transparent; box-shadow: 0 0 0 5px rgba(214,167,96,.1); overflow: hidden; }
+    .brand-mark img { display: block; width: 100%; height: 100%; }
+    .brand-name { letter-spacing: -.045em; }
+    .brand-name span { color: var(--accent); }
+    .brand-caption { max-width: 12ch; line-height: 1.25; }
+    .nav a.active { box-shadow: inset 2px 0 var(--accent); }
+    .button:focus-visible, .sample:focus-visible, .nav a:focus-visible, .file-drop:focus-within { outline: 3px solid var(--focus); outline-offset: 3px; }
+    .button:disabled { opacity: .45; cursor: not-allowed; transform: none; filter: none; }
+    .button.warn { color: #251b0d; background: var(--accent); }
+    .button.danger { color: #f0c0b7; border-color: rgba(216,120,102,.38); background: rgba(216,120,102,.1); }
+    .button.danger:hover { background: rgba(216,120,102,.18); }
+    .agent-section-label { color: var(--accent); }
+    .agent-panel { background: #10251f; }
+    .agent-output { background: #15312a; }
+    .agent-provider {
+      display: grid; gap: 8px; margin-top: 2px; padding: 10px 12px;
+      border: 1px solid rgba(201,222,207,.15); border-radius: 8px; background: rgba(4,20,24,.22);
+    }
+    .provider-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .provider-state { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: .72rem; }
+    .provider-state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--amber); }
+    .provider-state[data-state="ready"] { color: var(--mint); }
+    .provider-state[data-state="ready"]::before { background: var(--mint); }
+    .provider-state[data-state="error"] { color: var(--red); }
+    .provider-state[data-state="error"]::before { background: var(--red); }
+    .provider-model { color: var(--muted-2); font-family: var(--font-data); font-size: .72rem; }
+    .provider-toggle { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: .72rem; cursor: pointer; }
+    .provider-toggle input { accent-color: var(--mint); }
+    .provider-help { color: var(--muted-2); font-size: .69rem; line-height: 1.4; margin: 0; }
+    .agent-guidance { margin-top: 16px; padding: 12px 13px; border: 1px solid rgba(214,167,96,.3); border-radius: 8px; background: rgba(214,167,96,.08); }
+    .agent-guidance strong { display: block; color: var(--accent); font-size: .77rem; margin-bottom: 4px; }
+    .agent-guidance p { color: #dfcfac; font-size: .77rem; line-height: 1.5; margin: 0; }
+    .agent-model-note { color: var(--muted-2); font-size: .72rem; line-height: 1.45; margin: 12px 0 0; }
+    .source-item { padding: 10px 0; }
+    .source-type { color: var(--accent); }
+    .source-item a { text-decoration-color: rgba(214,167,96,.6); }
+    .source-item a:hover { color: var(--accent); text-decoration-color: var(--accent); }
+    .trust-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 14px; }
+    .trust-link { display: flex; align-items: center; gap: 8px; padding: 8px 9px; color: var(--muted); border: 1px solid var(--line); border-radius: 7px; font-size: .72rem; }
+    .trust-link:hover { color: var(--text); border-color: rgba(214,167,96,.42); background: rgba(214,167,96,.06); }
+    .trust-link::before { content: ""; width: 8px; height: 8px; flex: 0 0 8px; border-top: 1px solid var(--accent); border-right: 1px solid var(--accent); transform: translateY(1px); }
+    .records-actions { align-items: flex-end; }
+    .records-actions .button { white-space: nowrap; }
+    .priority-panel .panel-tag { color: var(--accent); }
+    .priority-value { color: var(--accent); }
+    .human-note { border: 1px solid rgba(114,213,183,.2); background: rgba(114,213,183,.055); }
+    .human-note h3 { margin-bottom: 6px; }
+    .human-note p { color: var(--muted); font-size: .78rem; line-height: 1.5; margin: 0; }
+    @media (max-width: 620px) {
+      .provider-row { align-items: flex-start; flex-direction: column; }
+      .trust-links { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Navegación principal">
+      <a class="brand" href="#overview" aria-label="SIGMA-F, inicio">
+        <span class="brand-mark" aria-hidden="true">
+          <img src="sigma-f-mark.svg" alt="">
+        </span>
+        <span class="brand-copy"><span class="brand-name">SIGMA-<span>F</span></span><span class="brand-caption">Verificación de señales</span></span>
+      </a>
+      <div class="nav-label">Mesa de trabajo</div>
+      <nav class="nav">
+        <a class="active" href="#overview"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg></span><span>Resumen</span></a>
+        <a href="#agents"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="7" r="2.5" stroke="currentColor" stroke-width="1.8"/><circle cx="17.5" cy="7" r="2.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="17" r="2.5" stroke="currentColor" stroke-width="1.8"/><path d="m8.7 8.3 1.9 5.1M15.3 8.3l-1.9 5.1M9 7h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span><span>Verificar evidencia</span></a>
+        <a href="#trends"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 17.5 9 12l3.5 3.5L20 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.5 8H20v4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Tendencias</span></a>
+        <a href="#reports"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M6 3.5h9l3 3v14H6v-17Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 3.5v4h4M9 12h6M9 16h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span><span>Reportes</span></a>
+        <a href="#method"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 10.5v5M12 7.5h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span>Metodología</span></a>
+        <a href="#settings"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 8.25a3.75 3.75 0 1 0 0 7.5 3.75 3.75 0 0 0 0-7.5Z" stroke="currentColor" stroke-width="1.8"/><path d="m19.3 13.9 1.15.9-1.55 2.68-1.4-.5a7.6 7.6 0 0 1-1.75 1.02l-.24 1.47h-3.1l-.24-1.47a7.6 7.6 0 0 1-1.75-1.02l-1.4.5-1.55-2.68 1.15-.9a7.35 7.35 0 0 1 0-2.05l-1.15-.9 1.55-2.68 1.4.5a7.6 7.6 0 0 1 1.75-1.02l.24-1.47h3.1l.24 1.47a7.6 7.6 0 0 1 1.75 1.02l1.4-.5 1.55 2.68-1.15.9a7.35 7.35 0 0 1 0 2.05Z" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round"/></svg></span><span>Configuración</span></a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="status-line"><span class="status-dot" id="sidebarAgentDot"></span><span id="sidebarAgentStatus">Agente local</span></div>
+        <p>Conecta un proveedor de IA para analizar mensajes, capturas y destinos de enlaces.</p>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar" id="overview">
+        <div>
+        <h1>Señales de riesgo, antes de que se conviertan en pérdidas.</h1>
+          <p class="topbar-copy">Analiza mensajes, reportes y patrones de fraude para convertir datos dispersos en decisiones de prevención.</p>
+        </div>
+        <div class="topbar-actions">
+          <span class="pill success"><span class="dot"></span><span id="sourceLabel">Datos simulados</span></span>
+          <span class="pill"><span class="dot"></span><span id="updatedLabel">Actualizado hoy</span></span>
+        </div>
+      </header>
+
+      <div class="page">
+        <section class="hero" aria-labelledby="heroTitle">
+          <div>
+            <h2 id="heroTitle">Convierte cada reporte en una señal accionable.</h2>
+            <p class="hero-copy">SIGMA-F clasifica mensajes y eventos sospechosos, identifica patrones y prioriza los casos que requieren atención inmediata.</p>
+            <div class="hero-actions">
+              <a class="button" href="#agents">Iniciar verificación</a>
+              <a class="button secondary" href="#trends">Ver tendencias</a>
+            </div>
+          </div>
+          <div class="hero-score">
+            <span class="small-label">Riesgo agregado del período</span>
+            <div class="hero-risk"><strong id="aggregateRisk">68</strong><span>/ 100</span></div>
+            <p id="aggregateRiskText">Requiere atención en canales de mensajería.</p>
+            <div class="meter" aria-label="Riesgo agregado"><span id="aggregateMeter" style="width:68%"></span></div>
+          </div>
+        </section>
+
+        <section class="stats" aria-label="Indicadores principales">
+          <article class="card stat-card"><div class="stat-top"><span>Reportes analizados</span><span class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M6 4h12v16H6z" stroke="currentColor" stroke-width="1.8"/><path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span></div><strong class="stat-value" id="reportCount">12</strong><p class="stat-note good" id="reportNote">+18% frente al período anterior</p></article>
+          <article class="card stat-card"><div class="stat-top"><span>Riesgo alto</span><span class="stat-icon" aria-hidden="true" style="color:var(--red);background:rgba(255,127,125,.1)"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4 20 19H4L12 4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span></div><strong class="stat-value" id="highCount">5</strong><p class="stat-note bad" id="highNote">Casos para revisar</p></article>
+          <article class="card stat-card"><div class="stat-top"><span>Pérdida potencial</span><span class="stat-icon" aria-hidden="true" style="color:var(--amber);background:rgba(246,189,100,.1)"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4v16M16 8.5c0-1.7-1.7-3-4-3s-4 1.3-4 3 1.7 2.5 4 3 4 1.3 4 3-1.7 3-4 3-4-1.3-4-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span></div><strong class="stat-value" id="lossValue">$12,4 M</strong><p class="stat-note" id="lossNote">Valor reportado en intentos</p></article>
+          <article class="card stat-card"><div class="stat-top"><span>Canal más reportado</span><span class="stat-icon" aria-hidden="true" style="color:var(--cyan);background:rgba(95,200,228,.1)"><svg viewBox="0 0 24 24" fill="none"><path d="M5 5.5h14v10H9l-4 3v-13Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 9h8M8 12h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span></div><strong class="stat-value" id="topChannel">WhatsApp</strong><p class="stat-note" id="channelNote">4 de cada 10 reportes</p></article>
+        </section>
+
+        <section id="agents" class="section-heading agent-suite">
+          <div><h2>Agente de verificación</h2><p>Reúne una captura, el texto y el remitente en una sola revisión explicable.</p></div>
+          <span class="counter">OCR local + IA configurable</span>
+        </section>
+
+        <section class="agent-layout" aria-label="Flujo de agentes para analizar evidencia">
+          <article class="panel agent-panel">
+            <div class="panel-head"><div><h2>Preparar un caso</h2><p>Sube una captura, pega el texto y, si lo tienes, indica el remitente.</p></div><span class="panel-tag">Evidencia</span></div>
+            <div class="agent-input-grid">
+              <div class="agent-field">
+                <label for="evidenceText">Texto del correo o mensaje</label>
+                <textarea id="evidenceText" aria-describedby="evidenceHelp" placeholder="Pega aquí el asunto, cuerpo del correo, SMS o conversación…"></textarea>
+                <small id="evidenceHelp">El agente busca presión, solicitudes de dinero o credenciales, entidades mencionadas y enlaces.</small>
+              </div>
+              <div class="agent-field">
+                <label for="senderEmail">Correo del remitente (opcional)</label>
+                <input id="senderEmail" type="email" inputmode="email" autocomplete="off" placeholder="remitente@dominio.com" aria-describedby="senderHelp">
+                <small id="senderHelp">Se compara con lo que afirma el mensaje. Solo se envía al proveedor si activas el análisis remoto.</small>
+              </div>
+              <div class="agent-field">
+                <label for="evidenceLink">Destino real del enlace (opcional)</label>
+                <input id="evidenceLink" type="url" inputmode="url" autocomplete="off" placeholder="https://dominio.com/ruta" aria-describedby="linkHelp">
+                <small id="linkHelp">Si el correo tiene un botón, copia su destino real aquí. Una captura solo permite analizar el enlace si la URL está visible.</small>
+              </div>
+              <div class="agent-field">
+                <label class="file-drop" for="evidenceImage">
+                  <span class="file-drop-title">Cargar captura de correo o conversación</span>
+                  <span class="file-drop-copy">PNG, JPG o WEBP · OCR local y visión del proveedor opcional</span>
+                  <input id="evidenceImage" type="file" accept="image/png,image/jpeg,image/webp" aria-describedby="imageHelp">
+                </label>
+                <small id="imageHelp">No subas claves, documentos ni datos bancarios reales. La imagen queda en esta sesión.</small>
+                <div class="preview-frame" id="evidencePreviewFrame"><img id="evidencePreview" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Vista previa de la captura de evidencia seleccionada"></div>
+              </div>
+              <div class="agent-actions">
+                <span class="agent-status" id="agentStatus" role="status" aria-live="polite">Listo para recibir evidencia.</span>
+                <button type="button" class="button" id="runAgentsBtn">Ejecutar verificación</button>
+                <button type="button" class="button ghost" id="clearEvidenceBtn">Limpiar</button>
+              </div>
+              <div class="agent-provider" aria-label="Estado del agente de IA">
+                <div class="provider-row"><span class="provider-state" id="deepSeekStatus" data-state="checking">Comprobando configuración...</span><span class="provider-model" id="deepSeekModel">sin proveedor</span></div>
+                <label class="provider-toggle"><input type="checkbox" id="useDeepSeek" checked> Usar el proveedor configurado para el análisis real</label>
+                <p class="provider-help">El análisis remoto recibe el texto, la imagen y la lectura limitada de los enlaces. <a href="#settings">Configura y comprueba tu API</a> antes de ejecutar el agente.</p>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel agent-output" id="agentOutput" aria-live="polite" aria-busy="false">
+            <div class="panel-head"><div><h2>Lectura de la evidencia</h2><p id="agentMeta">Sin análisis ejecutado todavía</p></div><span class="risk-badge medium" id="agentBadge">Pendiente</span></div>
+            <div class="agent-score-row">
+              <div class="agent-score"><strong id="agentScore">-</strong><span>/ 100 · riesgo estimado</span></div>
+              <div class="agent-reliability"><strong id="agentReliability">-</strong><span>fiabilidad del contenido, no identidad</span></div>
+            </div>
+            <div class="meter" aria-label="Riesgo estimado de la evidencia"><span id="agentMeter" style="width:0%"></span></div>
+            <p class="agent-summary" id="agentSummary">Ejecuta la verificación para separar señales observables, dominios encontrados y fuentes oficiales que conviene revisar.</p>
+            <div class="agent-guidance"><strong>Qué haría una persona prudente</strong><p id="agentRecommendation">No respondas todavía. Busca el sitio oficial por tu cuenta y confirma la comunicación por un canal independiente.</p></div>
+            <p class="agent-model-note" id="agentModelNote">Aún no se ha ejecutado el agente.</p>
+            <ul class="agent-checklist" aria-label="Estado de los agentes">
+              <li class="agent-check" id="visionCheck" data-state="pending"><span class="agent-check-dot" aria-hidden="true"></span><span>Visión y OCR · pendiente de una captura</span></li>
+              <li class="agent-check" id="signalCheck" data-state="pending"><span class="agent-check-dot" aria-hidden="true"></span><span>Señales de enlace y lenguaje · pendiente</span></li>
+              <li class="agent-check" id="sourceCheck" data-state="pending"><span class="agent-check-dot" aria-hidden="true"></span><span>Fuentes oficiales · pendiente</span></li>
+            </ul>
+            <p class="agent-section-label">Señales observables</p>
+            <ul class="agent-signal-list" id="agentSignalList"><li class="agent-empty">Todavía no hay evidencia para interpretar.</li></ul>
+            <div class="agent-evidence-ledger">
+              <div><p class="agent-section-label">Hechos observados</p><ul class="agent-signal-list" id="agentObservedList"><li class="agent-empty">Todavía no hay hechos confirmados.</li></ul></div>
+              <div><p class="agent-section-label">Pendiente de comprobar</p><ul class="agent-signal-list" id="agentUnknownList"><li class="agent-empty">Todavía no hay puntos pendientes.</li></ul></div>
+            </div>
+            <div class="agent-trace" aria-label="Resumen de evidencia extraída">
+              <div class="trace-card"><span>Remitente</span><strong id="agentSenderTrace">-</strong></div>
+              <div class="trace-card"><span>Dominios</span><strong id="agentDomainTrace">0 encontrados</strong></div>
+              <div class="trace-card"><span>Enlaces</span><strong id="agentLinkTrace">0 encontrados</strong></div>
+            </div>
+            <div class="agent-link-analysis" id="agentLinkAnalysis" hidden>
+              <p class="agent-section-label">Lectura del enlace</p>
+              <div class="link-analysis-grid">
+                <div class="link-analysis-card"><span>Destino observado</span><strong id="agentFinalUrl">-</strong></div>
+                <div class="link-analysis-card"><span>Respuesta HTTP</span><strong id="agentLinkHttp">-</strong></div>
+                <div class="link-analysis-card"><span>Título público</span><strong id="agentLinkTitle">-</strong></div>
+                <div class="link-analysis-card"><span>Redirecciones</span><strong id="agentLinkRedirects">-</strong></div>
+              </div>
+              <p class="link-analysis-summary" id="agentLinkSummary">El servidor local aún no ha leído el enlace.</p>
+            </div>
+            <div class="agent-sources">
+              <p class="agent-section-label">Fuentes oficiales para comprobar</p>
+              <div class="source-list" id="officialSourceList"><div class="agent-empty">Al terminar el análisis aparecerán enlaces de CAI Virtual, Fiscalía y MinTIC/ColCERT junto con una búsqueda guiada.</div></div>
+              <p class="agent-disclaimer">La apertura de una fuente oficial no confirma por sí sola que el mensaje sea fraude. Revisa el resultado, guarda la evidencia y usa los canales de denuncia si corresponde.</p>
+            </div>
+          </article>
+        </section>
+
+        <section id="trends" class="section-heading">
+          <div><h2>Tendencias y top de fraudes</h2><p>Una lectura resumida de la muestra para saber qué revisar primero.</p></div>
+          <span class="counter" id="periodLabel">12 registros visibles</span>
+        </section>
+
+        <section class="analytics-grid">
+          <article class="panel">
+            <div class="panel-head"><div><h2>Tendencia de reportes</h2><p>Casos registrados por día.</p></div><span class="panel-tag">Evolución</span></div>
+            <div class="chart-wrap"><svg id="trendChart" class="chart" viewBox="0 0 720 260" role="img" aria-label="Gráfico de tendencia de reportes"></svg></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><div><h2>Distribución de riesgo</h2><p>Clasificación de casos.</p></div></div>
+            <div class="donut-area"><div class="donut" id="riskDonut"><div class="donut-center"><div><strong id="donutTotal">12</strong><span>reportes</span></div></div></div></div>
+            <div class="legend">
+              <div class="legend-row"><span class="legend-label"><span class="legend-dot red"></span>Alto</span><strong id="legendHigh">5 · 42%</strong></div>
+              <div class="legend-row"><span class="legend-label"><span class="legend-dot amber"></span>Medio</span><strong id="legendMedium">3 · 25%</strong></div>
+              <div class="legend-row"><span class="legend-label"><span class="legend-dot mint"></span>Bajo</span><strong id="legendLow">4 · 33%</strong></div>
+            </div>
+          </article>
+          <article class="panel priority-panel">
+            <div class="panel-head"><div><h2>Top de modalidades</h2><p>Tipos de fraude más repetidos en la muestra.</p></div><span class="panel-tag">Top 5</span></div>
+            <div class="priority-list" id="priorityList"></div>
+          </article>
+        </section>
+
+        <section class="section-heading">
+          <div><h2>Rutas para actuar con calma</h2><p>Recomendaciones prácticas para no responder bajo presión.</p></div>
+        </section>
+        <section class="analytics-grid guidance-grid">
+          <article class="panel human-note"><h3>Primero, pausa</h3><p>No abras el enlace ni entregues códigos. Guarda la captura y respira antes de contestar.</p></article>
+          <article class="panel human-note"><h3>Luego, verifica</h3><p>Escribe tú mismo la dirección oficial o usa una app que ya conozcas. No uses el enlace que llegó en el mensaje.</p></article>
+          <article class="panel human-note"><h3>Si hubo pérdida</h3><p>Contacta a tu banco desde su canal oficial y reporta el caso en CAI Virtual o ante la autoridad correspondiente.</p></article>
+        </section>
+
+        <section id="reports" class="section-heading">
+          <div><h2>Registro de eventos</h2><p>Explora, filtra, importa o exporta los casos del modelo.</p></div>
+          <span class="counter" id="recordCounter">12 registros</span>
+        </section>
+
+        <section class="panel reports-panel">
+          <div class="toolbar">
+            <div class="filter-control"><label for="channelFilter">Canal</label><select id="channelFilter"><option value="all">Todos los canales</option></select></div>
+            <div class="filter-control"><label for="riskFilter">Riesgo</label><select id="riskFilter"><option value="all">Todos los niveles</option><option value="Alto">Alto</option><option value="Medio">Medio</option><option value="Bajo">Bajo</option></select></div>
+            <div class="filter-control"><label for="categoryFilter">Categoría</label><select id="categoryFilter"><option value="all">Todas las categorías</option></select></div>
+            <div class="filter-control"><label for="fromFilter">Desde</label><input id="fromFilter" type="date" value="2026-09-01"></div>
+            <div class="filter-control"><label for="toFilter">Hasta</label><input id="toFilter" type="date" value="2026-09-21"></div>
+            <div class="toolbar-actions"><button type="button" class="button secondary" id="applyFilters">Actualizar</button><button type="button" class="button ghost" id="resetFilters">Restablecer</button></div>
+          </div>
+          <div class="toolbar records-actions">
+            <label class="button secondary" for="csvInput">Importar CSV</label>
+            <input class="sr-only" id="csvInput" type="file" accept=".csv,text/csv">
+            <button type="button" class="button ghost" id="templateBtn">Descargar plantilla</button>
+            <button type="button" class="button ghost" id="exportBtn">Exportar vista</button>
+            <button type="button" class="button danger" id="clearRecordsBtn">Eliminar registros</button>
+            <button type="button" class="button secondary" id="restoreRecordsBtn" hidden>Restaurar muestra</button>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Fecha</th><th>Canal</th><th>Categoría</th><th>Ciudad</th><th>Entidad</th><th>Riesgo</th><th>Valor reportado</th><th>Estado</th></tr></thead>
+              <tbody id="reportTable"></tbody>
+            </table>
+          </div>
+          <div class="table-footer"><span id="tableSummary">Mostrando 12 registros</span><span>Fuente: modelo SIGMA-F · datos simulados</span></div>
+        </section>
+
+        <section class="section-heading">
+          <div><h2>Fuentes confiables</h2><p>Consulta siempre la entidad directamente. SIGMA-F no certifica una URL ni reemplaza una denuncia.</p></div>
+        </section>
+        <section class="panel">
+          <div class="trust-links" aria-label="Enlaces oficiales de prevención y reporte">
+            <a class="trust-link" href="https://caivirtual.policia.gov.co/" target="_blank" rel="noopener noreferrer">CAI Virtual · Policía Nacional</a>
+            <a class="trust-link" href="https://colcert.gov.co/800/w3-article-198656.html" target="_blank" rel="noopener noreferrer">Reportar incidente · ColCERT</a>
+            <a class="trust-link" href="https://www.fiscalia.gov.co/colombia/" target="_blank" rel="noopener noreferrer">Fiscalía General de la Nación</a>
+            <a class="trust-link" href="https://mintic.gov.co/portal/historico/w3-article-125647.html" target="_blank" rel="noopener noreferrer">MinTIC · protección de datos</a>
+          </div>
+        </section>
+
+        <section id="method" class="section-heading">
+          <div><h2>Cómo funciona SIGMA-F</h2><p>Una arquitectura de BI pensada para prevenir, no solo registrar.</p></div>
+        </section>
+        <section class="method-grid">
+          <article class="panel">
+            <h2>Del dato a la decisión</h2>
+            <p class="method-copy">El modelo integra reportes operativos, normaliza señales y calcula una puntuación explicable. El resultado prioriza los casos que deben verificarse, bloquearse o reportarse.</p>
+            <div class="flow"><span class="flow-step"><b>01</b> Capturar reportes</span><span class="flow-step"><b>02</b> Normalizar señales</span><span class="flow-step"><b>03</b> Clasificar riesgo</span><span class="flow-step"><b>04</b> Activar prevención</span></div>
+          </article>
+          <article class="panel">
+            <h2>Indicadores del modelo</h2>
+            <ul class="method-list"><li>Riesgo por canal y categoría.</li><li>Valor potencial de pérdida reportado.</li><li>Patrones de urgencia y suplantación.</li><li>Casos priorizados para revisión.</li></ul>
+          </article>
+        </section>
+
+        <section id="settings" class="section-heading">
+          <div><h2>Configuración del agente</h2><p>Conecta una API compatible para que SIGMA-F analice la evidencia con un modelo real.</p></div>
+          <span class="counter" id="settingsProviderLabel">Sin proveedor comprobado</span>
+        </section>
+        <section class="settings-layout" aria-label="Configuración del proveedor de inteligencia artificial">
+          <article class="panel settings-panel">
+            <div class="panel-head"><div><h2>Proveedor de IA</h2><p>La clave se utiliza desde este servidor local y no se guarda en el proyecto.</p></div><span class="panel-tag">Conexión local</span></div>
+            <div class="settings-form">
+              <div class="settings-field">
+                <label for="providerSelect">Proveedor</label>
+                <select id="providerSelect">
+                  <option value="deepseek">DeepSeek</option>
+                  <option value="compatible">Otro proveedor compatible con Chat Completions</option>
+                </select>
+                <small>DeepSeek queda preconfigurado para texto e imágenes con el modelo deepseek-flash.</small>
+              </div>
+              <div class="settings-field">
+                <label for="providerEndpoint">Endpoint de Chat Completions</label>
+                <input id="providerEndpoint" type="url" autocomplete="off" spellcheck="false" value="https://api.deepseek.com/chat/completions" placeholder="https://api.proveedor.com/v1/chat/completions">
+                <small>Usa HTTPS. HTTP solo se admite para un proveedor que corra en localhost.</small>
+              </div>
+              <div class="settings-field">
+                <label for="providerModel">Modelo</label>
+                <input id="providerModel" type="text" autocomplete="off" spellcheck="false" value="deepseek-flash" placeholder="deepseek-flash">
+                <small>Debe aceptar texto; para analizar capturas debe aceptar imágenes.</small>
+              </div>
+              <div class="settings-field">
+                <label for="providerApiKey">API key</label>
+                <input id="providerApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Pega aquí tu clave; no se muestra en pantalla">
+                <small>La clave viaja únicamente a tu servidor local para comprobarla y usarla en la solicitud al proveedor.</small>
+              </div>
+              <label class="settings-check"><input id="rememberProviderKey" type="checkbox"> Recordar la clave en este navegador (solo si aceptas el riesgo de guardarla localmente)</label>
+              <div class="settings-actions">
+                <span class="settings-status" id="providerSettingsStatus" role="status" aria-live="polite">Configura el proveedor y comprueba la conexión.</span>
+                <button type="button" class="button" id="checkProviderBtn">Comprobar API</button>
+              </div>
+            </div>
+          </article>
+          <article class="panel settings-note">
+            <h3>Qué hará el agente después</h3>
+            <p>Al ejecutar una verificación, SIGMA-F hará un preanálisis local, leerá hasta cinco enlaces públicos sin ejecutar sus scripts y enviará la evidencia al proveedor que acabas de comprobar.</p>
+            <ul>
+              <li>La imagen se envía como imagen real al modelo cuando el proveedor admite visión.</li>
+              <li>El enlace se revisa por su estado HTTP, redirecciones, dominio, título y extracto público.</li>
+              <li>El resultado separa observaciones, hipótesis y el siguiente paso.</li>
+              <li>La IA no certifica identidad ni reemplaza una denuncia o verificación oficial.</li>
+            </ul>
+            <div class="agent-guidance"><strong>Privacidad práctica</strong><p>Evita enviar contraseñas, datos bancarios o documentos reales. La clave no se inserta en index.html; si la recuerdas, queda en el almacenamiento local de este navegador.</p></div>
+          </article>
+        </section>
+      </div>
+      <footer><span><strong>SIGMA-F</strong> · Sistema Inteligente de Gestión y Monitoreo de Fraude Digital</span><span>Dashboard académico · agente de IA configurable</span></footer>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var initialData = [
+        { fecha: "2026-09-08", canal: "WhatsApp", categoria: "Suplantación", ciudad: "Bogotá", entidad: "Entidad financiera", mensaje: "Tu cuenta será bloqueada hoy. Confirma el código en el enlace.", solicitaDinero: false, solicitaCodigo: true, tieneEnlace: true, urgencia: "Alta", monto: 850000, riesgo: 92, estado: "Priorizar", reportes: 22 },
+        { fecha: "2026-09-09", canal: "SMS", categoria: "Phishing", ciudad: "Medellín", entidad: "Servicio de entregas", mensaje: "Tu paquete está retenido. Paga el valor pendiente para recibirlo.", solicitaDinero: true, solicitaCodigo: false, tieneEnlace: true, urgencia: "Alta", monto: 125000, riesgo: 84, estado: "Nuevo", reportes: 14 },
+        { fecha: "2026-09-10", canal: "Marketplace", categoria: "Compra falsa", ciudad: "Cali", entidad: "Particular", mensaje: "Producto disponible a precio especial. Solicita transferencia para reservar.", solicitaDinero: true, solicitaCodigo: false, tieneEnlace: false, urgencia: "Media", monto: 480000, riesgo: 72, estado: "En revisión", reportes: 9 },
+        { fecha: "2026-09-11", canal: "Correo", categoria: "Suplantación", ciudad: "Bogotá", entidad: "Entidad pública", mensaje: "Actualiza tus datos para mantener activo el subsidio.", solicitaDinero: false, solicitaCodigo: true, tieneEnlace: true, urgencia: "Media", monto: 0, riesgo: 78, estado: "En revisión", reportes: 12 },
+        { fecha: "2026-09-12", canal: "WhatsApp", categoria: "Empleo falso", ciudad: "Barranquilla", entidad: "Empresa desconocida", mensaje: "Vacante inmediata. Consigna para activar tu contrato y envía tus documentos.", solicitaDinero: true, solicitaCodigo: false, tieneEnlace: false, urgencia: "Alta", monto: 80000, riesgo: 88, estado: "Priorizar", reportes: 18 },
+        { fecha: "2026-09-13", canal: "Redes sociales", categoria: "Premio falso", ciudad: "Cartagena", entidad: "Marca comercial", mensaje: "Ganaste un bono. Completa tus datos para recibirlo.", solicitaDinero: false, solicitaCodigo: false, tieneEnlace: true, urgencia: "Media", monto: 250000, riesgo: 66, estado: "Nuevo", reportes: 7 },
+        { fecha: "2026-09-14", canal: "WhatsApp", categoria: "Suplantación", ciudad: "Pereira", entidad: "Familiar", mensaje: "Hola, cambié de número. Necesito que me prestes dinero con urgencia.", solicitaDinero: true, solicitaCodigo: false, tieneEnlace: false, urgencia: "Alta", monto: 350000, riesgo: 76, estado: "En revisión", reportes: 11 },
+        { fecha: "2026-09-15", canal: "Llamada", categoria: "Vishing", ciudad: "Bogotá", entidad: "Operador móvil", mensaje: "Llamada que solicita confirmar datos para renovar la línea.", solicitaDinero: false, solicitaCodigo: true, tieneEnlace: false, urgencia: "Media", monto: 0, riesgo: 61, estado: "Nuevo", reportes: 6 },
+        { fecha: "2026-09-16", canal: "Correo", categoria: "Phishing", ciudad: "Manizales", entidad: "Plataforma de pagos", mensaje: "Verifica tu contraseña en el portal para evitar suspensión.", solicitaDinero: false, solicitaCodigo: true, tieneEnlace: true, urgencia: "Alta", monto: 1400000, riesgo: 90, estado: "Priorizar", reportes: 19 },
+        { fecha: "2026-09-18", canal: "Marketplace", categoria: "Compra falsa", ciudad: "Bucaramanga", entidad: "Particular", mensaje: "Separa el equipo con un anticipo y recibe envío gratis.", solicitaDinero: true, solicitaCodigo: false, tieneEnlace: false, urgencia: "Baja", monto: 720000, riesgo: 53, estado: "En revisión", reportes: 5 },
+        { fecha: "2026-09-20", canal: "WhatsApp", categoria: "Mensaje normal", ciudad: "Bogotá", entidad: "Contacto conocido", mensaje: "Te escribo para confirmar la reunión de mañana. No necesitas enviar datos.", solicitaDinero: false, solicitaCodigo: false, tieneEnlace: false, urgencia: "Baja", monto: 0, riesgo: 14, estado: "Descartado", reportes: 3 },
+        { fecha: "2026-09-21", canal: "SMS", categoria: "Phishing", ciudad: "Cúcuta", entidad: "Entidad financiera", mensaje: "Confirma la actualización de seguridad desde el enlace recibido.", solicitaDinero: false, solicitaCodigo: true, tieneEnlace: true, urgencia: "Media", monto: 910000, riesgo: 81, estado: "Nuevo", reportes: 10 }
+      ];
+
+      var data = initialData.slice();
+      var filtered = [];
+      var numberFormat = new Intl.NumberFormat("es-CO");
+      var moneyFormat = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
+      var els = {
+        channel: document.getElementById("channelFilter"),
+        risk: document.getElementById("riskFilter"),
+        category: document.getElementById("categoryFilter"),
+        from: document.getElementById("fromFilter"),
+        to: document.getElementById("toFilter"),
+        table: document.getElementById("reportTable"),
+        toast: document.getElementById("toast")
+      };
+      var agentFile = null;
+      var agentPreviewUrl = "";
+      var agentLastResult = null;
+      var deepSeekAvailable = false;
+      var deepSeekModelName = "modo local";
+      var providerVerified = false;
+      var providerStorageKey = "sigma-f-provider-config-v1";
+      var providerConfig = { provider: "deepseek", endpoint: "https://api.deepseek.com/chat/completions", model: "deepseek-flash", apiKey: "", remember: false };
+      var apiBaseUrl = window.location.protocol === "file:" ? "http://127.0.0.1:4173" : "";
+
+      function apiUrl(path) {
+        return apiBaseUrl + path;
+      }
+
+      function localServerErrorMessage() {
+        if (window.location.protocol === "file:") {
+          return "No se pudo conectar con SIGMA-F. Inicia el servidor local y vuelve a abrir http://127.0.0.1:4173/#settings.";
+        }
+        return "No se pudo conectar con el servidor local. Comprueba que SIGMA-F esté iniciado y vuelve a intentar.";
+      }
+
+      function providerLabel(config) {
+        return config && config.provider === "deepseek" ? "DeepSeek" : "Proveedor compatible";
+      }
+      function loadProviderConfig() {
+        try {
+          var saved = JSON.parse(window.localStorage.getItem(providerStorageKey) || "null");
+          if (saved && typeof saved === "object") {
+            providerConfig = Object.assign({}, providerConfig, saved);
+            providerConfig.apiKey = saved.remember ? String(saved.apiKey || "") : "";
+          }
+        } catch (error) {}
+        return providerConfig;
+      }
+      function applyProviderConfigToForm() {
+        var select = document.getElementById("providerSelect");
+        var endpoint = document.getElementById("providerEndpoint");
+        var model = document.getElementById("providerModel");
+        var key = document.getElementById("providerApiKey");
+        var remember = document.getElementById("rememberProviderKey");
+        if (!select || !endpoint || !model || !key || !remember) return;
+        select.value = providerConfig.provider || "deepseek";
+        endpoint.value = providerConfig.endpoint || "";
+        model.value = providerConfig.model || "";
+        key.value = providerConfig.apiKey || "";
+        remember.checked = Boolean(providerConfig.remember);
+      }
+      function readProviderConfigFromForm() {
+        return {
+          provider: document.getElementById("providerSelect").value,
+          endpoint: document.getElementById("providerEndpoint").value.trim(),
+          model: document.getElementById("providerModel").value.trim(),
+          apiKey: document.getElementById("providerApiKey").value.trim(),
+          remember: document.getElementById("rememberProviderKey").checked
+        };
+      }
+      function saveProviderConfig(config) {
+        providerConfig = Object.assign({}, providerConfig, config);
+        try {
+          var saved = Object.assign({}, providerConfig);
+          if (!saved.remember) delete saved.apiKey;
+          window.localStorage.setItem(providerStorageKey, JSON.stringify(saved));
+        } catch (error) {}
+      }
+      function setProviderSettingsStatus(message, state) {
+        var status = document.getElementById("providerSettingsStatus");
+        if (!status) return;
+        status.textContent = message;
+        status.setAttribute("data-state", state || "");
+      }
+      function resetProviderVerification(message) {
+        try { providerConfig = readProviderConfigFromForm(); } catch (error) {}
+        providerVerified = false;
+        deepSeekAvailable = false;
+        setProviderSettingsStatus(message || "La configuración cambió; vuelve a comprobar la API.", "");
+        setDeepSeekStatus("API pendiente de comprobación", "", providerConfig.model || "sin modelo");
+      }
+
+      function escapeHtml(value) {
+        return String(value == null ? "" : value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+      }
+      function formatDate(value) {
+        var parts = String(value).split("-");
+        return parts.length === 3 ? parts[2] + "/" + parts[1] + "/" + parts[0] : value;
+      }
+      function parseNumber(value) {
+        if (typeof value === "number") return value;
+        var text = String(value == null ? "" : value).trim().replace(/\s/g, "");
+        if (!text) return 0;
+        if (text.indexOf(",") >= 0 && text.indexOf(".") >= 0) {
+          text = text.lastIndexOf(",") > text.lastIndexOf(".") ? text.replace(/\./g, "").replace(",", ".") : text.replace(/,/g, "");
+        } else if (text.indexOf(",") >= 0) text = text.replace(",", ".");
+        else if (/^\d{1,3}(\.\d{3})+$/.test(text)) text = text.replace(/\./g, "");
+        var result = Number(text.replace(/[^0-9.-]/g, ""));
+        return Number.isFinite(result) ? result : 0;
+      }
+      function parseBoolean(value) {
+        return /^(true|1|si|sí|yes|s|x)$/i.test(String(value == null ? "" : value).trim());
+      }
+      function normalizeKey(value) {
+        return String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      }
+      function findKey(map, names) {
+        for (var i = 0; i < names.length; i += 1) if (map[names[i]] != null) return map[names[i]];
+        return "";
+      }
+      function levelFromScore(score) { return score >= 70 ? "Alto" : (score >= 40 ? "Medio" : "Bajo"); }
+      function scoreRow(row) {
+        var score = parseNumber(row.riesgo);
+        if (score > 0) return Math.max(0, Math.min(100, Math.round(score)));
+        score = 12;
+        if (row.solicitaDinero) score += 27;
+        if (row.solicitaCodigo) score += 22;
+        if (row.tieneEnlace) score += 17;
+        if (row.urgencia === "Alta") score += 17;
+        else if (row.urgencia === "Media") score += 9;
+        if (/suplant|phish|vishing|premio|empleo|compra/i.test(row.categoria)) score += 9;
+        return Math.max(0, Math.min(98, score));
+      }
+      function normalizeRow(row) {
+        var map = {};
+        Object.keys(row).forEach(function (key) { map[normalizeKey(key)] = row[key]; });
+        var result = {
+          fecha: String(findKey(map, ["fecha", "date", "periodo"]) || "2026-09-21").trim(),
+          canal: String(findKey(map, ["canal", "channel", "medio"]) || "Sin canal").trim(),
+          categoria: String(findKey(map, ["categoria", "category", "tipodefraude", "tipo"]) || "Sin clasificar").trim(),
+          ciudad: String(findKey(map, ["ciudad", "city", "municipio"]) || "Sin ciudad").trim(),
+          entidad: String(findKey(map, ["entidad", "entity", "suplantada", "empresa"]) || "No identificada").trim(),
+          mensaje: String(findKey(map, ["mensaje", "message", "descripcion", "detalle"]) || "").trim(),
+          solicitaDinero: parseBoolean(findKey(map, ["solicitadinero", "pidedinero", "dinero", "pago"])),
+          solicitaCodigo: parseBoolean(findKey(map, ["solicitacodigo", "pidecodigo", "codigo", "otp"])),
+          tieneEnlace: parseBoolean(findKey(map, ["tieneenlace", "enlace", "link", "url"])),
+          urgencia: String(findKey(map, ["urgencia", "urgency", "prioridad"]) || "Media").trim(),
+          monto: parseNumber(findKey(map, ["monto", "valor", "valorreporte", "perdida", "montocop"])),
+          riesgo: parseNumber(findKey(map, ["riesgo", "score", "puntuacion"])),
+          estado: String(findKey(map, ["estado", "status"]) || "Nuevo").trim(),
+          reportes: parseNumber(findKey(map, ["reportes", "reports", "casos"]) || 1)
+        };
+        result.riesgo = scoreRow(result);
+        if (!result.solicitaDinero && /consign|transfer|pago|anticipo|dinero/i.test(result.mensaje)) result.solicitaDinero = true;
+        if (!result.solicitaCodigo && /codigo|código|otp|clave|password|contraseña/i.test(result.mensaje)) result.solicitaCodigo = true;
+        if (!result.tieneEnlace && /(https?:\/\/|www\.|\.com\b|\.co\b|\.net\b)/i.test(result.mensaje)) result.tieneEnlace = true;
+        return result;
+      }
+      data = data.map(normalizeRow);
+
+      function sum(rows, key) { return rows.reduce(function (total, row) { return total + (Number(row[key]) || 0); }, 0); }
+      function mode(rows, key) {
+        var counts = {};
+        rows.forEach(function (row) { counts[row[key]] = (counts[row[key]] || 0) + 1; });
+        return Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; })[0] || "Sin datos";
+      }
+      function formatMillions(value) { return (value / 1000000).toFixed(1).replace(".", ",") + " M"; }
+      function showToast(message) {
+        els.toast.textContent = message;
+        els.toast.classList.add("visible");
+        clearTimeout(showToast.timer);
+        showToast.timer = setTimeout(function () { els.toast.classList.remove("visible"); }, 3200);
+      }
+      function populateSelect(select, values, allLabel) {
+        var current = select.value;
+        select.innerHTML = '<option value="all">' + escapeHtml(allLabel) + "</option>" + values.sort().map(function (value) { return '<option value="' + escapeHtml(value) + '">' + escapeHtml(value) + "</option>"; }).join("");
+        if (values.indexOf(current) >= 0) select.value = current;
+      }
+      function populateFilters() {
+        populateSelect(els.channel, Array.from(new Set(data.map(function (row) { return row.canal; }))), "Todos los canales");
+        populateSelect(els.category, Array.from(new Set(data.map(function (row) { return row.categoria; }))), "Todas las categorías");
+      }
+      function getFiltered() {
+        return data.filter(function (row) {
+          return (els.channel.value === "all" || row.canal === els.channel.value) &&
+            (els.risk.value === "all" || levelFromScore(row.riesgo) === els.risk.value) &&
+            (els.category.value === "all" || row.categoria === els.category.value) &&
+            (!els.from.value || row.fecha >= els.from.value) &&
+            (!els.to.value || row.fecha <= els.to.value);
+        }).sort(function (a, b) { return a.fecha.localeCompare(b.fecha); });
+      }
+      function renderKpis(rows) {
+        var high = rows.filter(function (row) { return levelFromScore(row.riesgo) === "Alto"; }).length;
+        var averageRisk = rows.length ? Math.round(sum(rows, "riesgo") / rows.length) : 0;
+        var top = mode(rows, "canal");
+        var topCount = rows.filter(function (row) { return row.canal === top; }).length;
+        document.getElementById("reportCount").textContent = numberFormat.format(rows.length);
+        document.getElementById("highCount").textContent = numberFormat.format(high);
+        document.getElementById("highNote").textContent = high ? "Casos para revisar" : "Sin casos críticos";
+        document.getElementById("lossValue").textContent = "$" + formatMillions(sum(rows, "monto"));
+        document.getElementById("topChannel").textContent = top;
+        document.getElementById("channelNote").textContent = rows.length ? topCount + " de " + rows.length + " reportes" : "Sin reportes visibles";
+        document.getElementById("aggregateRisk").textContent = String(averageRisk);
+        document.getElementById("aggregateMeter").style.width = averageRisk + "%";
+        document.getElementById("aggregateRiskText").textContent = averageRisk >= 70 ? "Prioridad alta: verificar y contener." : (averageRisk >= 40 ? "Requiere atención en canales de mensajería." : "Riesgo controlado en la muestra visible.");
+        document.getElementById("periodLabel").textContent = rows.length + (rows.length === 1 ? " registro visible" : " registros visibles");
+        document.getElementById("recordCounter").textContent = rows.length + (rows.length === 1 ? " registro" : " registros");
+        document.getElementById("tableSummary").textContent = "Mostrando " + rows.length + (rows.length === 1 ? " registro" : " registros");
+      }
+      function renderTrend(rows) {
+        var svg = document.getElementById("trendChart");
+        var width = 720, height = 260, pad = { top: 20, right: 18, bottom: 34, left: 45 };
+        var innerW = width - pad.left - pad.right, innerH = height - pad.top - pad.bottom;
+        if (!rows.length) { svg.innerHTML = '<text x="360" y="132" text-anchor="middle" class="chart-empty">No hay datos para estos filtros</text>'; return; }
+        var counts = {};
+        rows.forEach(function (row) { counts[row.fecha] = (counts[row.fecha] || 0) + 1; });
+        var dates = Object.keys(counts).sort();
+        var values = dates.map(function (date) { return counts[date]; });
+        var max = Math.max(2, Math.max.apply(null, values));
+        var x = function (index) { return pad.left + (dates.length === 1 ? innerW / 2 : index * innerW / (dates.length - 1)); };
+        var y = function (value) { return pad.top + innerH - (value / max) * innerH; };
+        var points = values.map(function (value, index) { return [x(index), y(value)]; });
+        var line = points.map(function (point) { return point[0].toFixed(1) + "," + point[1].toFixed(1); }).join(" ");
+        var area = pad.left + "," + (pad.top + innerH) + " " + line + " " + (pad.left + innerW) + "," + (pad.top + innerH);
+        var grid = [0, 1, 2, 3].map(function (step) {
+          var gy = pad.top + innerH * step / 3, value = Math.round(max - max * step / 3);
+          return '<line x1="' + pad.left + '" y1="' + gy + '" x2="' + (pad.left + innerW) + '" y2="' + gy + '" class="chart-grid"></line><text x="' + (pad.left - 9) + '" y="' + (gy + 4) + '" text-anchor="end" class="chart-axis">' + value + "</text>";
+        }).join("");
+        var labels = dates.map(function (date, index) { return '<text x="' + x(index) + '" y="' + (height - 9) + '" text-anchor="middle" class="chart-axis">' + date.slice(8) + "/" + date.slice(5, 7) + "</text>"; }).join("");
+        var dots = values.map(function (value, index) { return '<circle cx="' + x(index) + '" cy="' + y(value) + '" r="4.5" class="chart-dot"><title>' + formatDate(dates[index]) + ": " + value + " reporte(s)</title></circle>"; }).join("");
+        svg.innerHTML = grid + '<polygon points="' + area + '" class="chart-area"></polygon><polyline points="' + line + '" class="chart-line"></polyline>' + dots + labels;
+      }
+      function renderRiskDistribution(rows) {
+        var high = rows.filter(function (row) { return levelFromScore(row.riesgo) === "Alto"; }).length;
+        var medium = rows.filter(function (row) { return levelFromScore(row.riesgo) === "Medio"; }).length;
+        var low = rows.length - high - medium;
+        var total = Math.max(rows.length, 1);
+        var highEnd = high / total * 100, mediumEnd = (high + medium) / total * 100;
+        document.getElementById("riskDonut").style.background = "conic-gradient(var(--red) 0 " + highEnd + "%, var(--amber) " + highEnd + "% " + mediumEnd + "%, var(--mint) " + mediumEnd + "% 100%)";
+        document.getElementById("donutTotal").textContent = rows.length;
+        document.getElementById("legendHigh").textContent = high + " · " + Math.round(high / total * 100) + "%";
+        document.getElementById("legendMedium").textContent = medium + " · " + Math.round(medium / total * 100) + "%";
+        document.getElementById("legendLow").textContent = low + " · " + Math.round(low / total * 100) + "%";
+      }
+      function renderPriorities(rows) {
+        var container = document.getElementById("priorityList");
+        var grouped = {};
+        rows.forEach(function (row) {
+          var key = row.categoria || "Sin clasificar";
+          if (!grouped[key]) grouped[key] = { category: key, count: 0, risk: 0, channels: {} };
+          grouped[key].count += 1;
+          grouped[key].risk += row.riesgo;
+          grouped[key].channels[row.canal] = (grouped[key].channels[row.canal] || 0) + 1;
+        });
+        var priorities = Object.keys(grouped).map(function (key) {
+          var item = grouped[key];
+          var channel = Object.keys(item.channels).sort(function (a, b) { return item.channels[b] - item.channels[a]; })[0] || "Sin canal";
+          return { category: item.category, count: item.count, averageRisk: Math.round(item.risk / item.count), channel: channel };
+        }).sort(function (a, b) { return (b.count * 100 + b.averageRisk) - (a.count * 100 + a.averageRisk); }).slice(0, 5);
+        container.innerHTML = priorities.length ? priorities.map(function (row, index) {
+          return '<div class="priority-item"><span class="priority-rank">0' + (index + 1) + '</span><div><strong>' + escapeHtml(row.category) + '</strong><small>' + row.count + (row.count === 1 ? ' caso' : ' casos') + ' · canal frecuente: ' + escapeHtml(row.channel) + '</small></div><span class="priority-value">' + row.averageRisk + '</span></div>';
+        }).join("") : '<div class="empty">No hay prioridades con estos filtros.</div>';
+      }
+      function renderTable(rows) {
+        els.table.innerHTML = rows.length ? rows.map(function (row) {
+          var level = levelFromScore(row.riesgo);
+          return '<tr><td>' + escapeHtml(formatDate(row.fecha)) + '</td><td><span class="channel-chip">' + escapeHtml(row.canal) + '</span></td><td>' + escapeHtml(row.categoria) + '</td><td class="table-muted">' + escapeHtml(row.ciudad) + '</td><td>' + escapeHtml(row.entidad) + '</td><td><span class="table-risk ' + level.toLowerCase() + '">' + level + " · " + row.riesgo + '</span></td><td>' + (row.monto ? moneyFormat.format(row.monto) : "-") + '</td><td class="table-muted">' + escapeHtml(row.estado) + "</td></tr>";
+        }).join("") : '<tr><td colspan="8"><div class="empty">No hay registros para mostrar.</div></td></tr>';
+      }
+      function render() {
+        filtered = getFiltered();
+        renderKpis(filtered);
+        renderTrend(filtered);
+        renderRiskDistribution(filtered);
+        renderPriorities(filtered);
+        renderTable(filtered);
+      }
+      function downloadFile(filename, content, type) {
+        var blob = new Blob([content], { type: type }), url = URL.createObjectURL(blob), link = document.createElement("a");
+        link.href = url; link.download = filename; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+      }
+      function exportRows(rows) {
+        var headers = ["fecha", "canal", "categoria", "ciudad", "entidad", "mensaje", "solicita_dinero", "solicita_codigo", "tiene_enlace", "urgencia", "monto_cop", "riesgo", "estado", "reportes"];
+        var lines = [headers.join(";")].concat(rows.map(function (row) { return [row.fecha, row.canal, row.categoria, row.ciudad, row.entidad, row.mensaje, row.solicitaDinero, row.solicitaCodigo, row.tieneEnlace, row.urgencia, row.monto, row.riesgo, row.estado, row.reportes].map(function (value) { return String(value == null ? "" : value).replace(/;/g, ","); }).join(";"); }));
+        downloadFile("sigma-f-reportes-filtrados.csv", lines.join("\n"), "text/csv;charset=utf-8");
+        showToast("Vista exportada correctamente.");
+      }
+      function parseCsvLine(line, separator) {
+        var cells = [], current = "", quoted = false;
+        for (var i = 0; i < line.length; i += 1) {
+          var char = line[i];
+          if (char === '"') {
+            if (quoted && line[i + 1] === '"') { current += '"'; i += 1; } else quoted = !quoted;
+          } else if (char === separator && !quoted) { cells.push(current.trim()); current = ""; } else current += char;
+        }
+        cells.push(current.trim());
+        return cells;
+      }
+      function parseCsv(text) {
+        var lines = text.replace(/\r/g, "").split("\n").filter(function (line) { return line.trim(); });
+        if (lines.length < 2) return [];
+        var separator = lines[0].indexOf(";") >= 0 ? ";" : ",";
+        var headers = parseCsvLine(lines[0], separator);
+        return lines.slice(1).map(function (line) {
+          var values = parseCsvLine(line, separator), row = {};
+          headers.forEach(function (header, index) { row[header] = values[index] || ""; });
+          return normalizeRow(row);
+        }).filter(function (row) { return row.fecha && row.canal; });
+      }
+      function analyzeText(text) {
+        var lower = String(text || "").toLowerCase(), signals = [], score = 8;
+        function add(test, points, label) { if (test) { score += points; signals.push(label); } }
+        add(/codigo|código|otp|clave|password|contraseña|credencial(?:es)?/.test(lower), 24, "Solicita códigos o credenciales");
+        add(/transfer|transfier|consign|pago|giro|deposito|depósito|anticipo|dinero/.test(lower), 24, "Solicita dinero o transferencia");
+        add(/https?:\/\/|www\.|\.com\b|\.co\b|\.net\b/.test(lower), 17, "Incluye un enlace o dominio externo");
+        add(/(?:confirm(?:a|ar)|valid(?:a|ar)|verifi(?:ca|car)|ingres(?:a|ar)|introdu(?:ce|cir)|proporcion(?:a|ar)|actualiz(?:a|ar)).{0,50}(?:datos?|informaci[oó]n|usuario|clave|contrase[nñ]a|credenciales|c[oó]digo|otp)|(?:datos?|informaci[oó]n|usuario|clave|contrase[nñ]a|credenciales|c[oó]digo|otp).{0,50}(?:confirm(?:a|ar)|valid(?:a|ar)|verifi(?:ca|car)|ingres(?:a|ar)|introdu(?:ce|cir)|proporcion(?:a|ar)|actualiz(?:a|ar))/.test(lower), 18, "Solicita confirmar o validar información");
+        add(/urgente|hoy|inmediato|ultimo|último|bloque|suspender|plazo/.test(lower), 17, "Usa presión de tiempo");
+        add(/premio|ganaste|bono|subsidio|empleo|vacante|beneficio/.test(lower), 11, "Promete un beneficio inesperado");
+        add(/banco|bancolombia|nequi|daviplata|dian|whatsapp|operador/.test(lower), 8, "Menciona una entidad o servicio para generar confianza");
+        if (lower.length > 180) score += 3;
+        score = Math.max(3, Math.min(98, score));
+        var level = levelFromScore(score);
+        var verdict = level === "Alto" ? "No continúes sin verificar" : (level === "Medio" ? "Verifica antes de responder" : "No se detectan señales fuertes");
+        var copy = level === "Alto" ? "El texto combina varias señales asociadas a fraude digital." : (level === "Medio" ? "El texto contiene algunas señales que merecen una comprobación adicional." : "El texto no presenta suficientes patrones para clasificarlo como riesgoso.");
+        var recommendation = level === "Alto" ? "No abras enlaces ni envíes códigos. Confirma la comunicación usando un canal oficial." : (level === "Medio" ? "Busca la página oficial de la entidad y verifica el mensaje sin responder al remitente." : "Mantén las precauciones básicas y evita compartir información innecesaria.");
+        return { score: score, level: level, verdict: verdict, copy: copy, recommendation: recommendation, signals: signals };
+      }
+      function uniqueValues(values) {
+        return values.filter(function (value, index, list) { return value && list.indexOf(value) === index; });
+      }
+      function cleanEvidenceToken(value) {
+        return String(value || "").replace(/[),.;!?¿¡\]}]+$/g, "");
+      }
+      function extractEvidenceLinks(text) {
+        var source = String(text || "").replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ");
+        var matches = source.match(/(?:https?:\/\/|www\.)[^\s<>"']+|(?:[\w-]+\.)+[a-z]{2,}(?:\/[^\s<>"']*)?/gi) || [];
+        return uniqueValues(matches.map(cleanEvidenceToken).filter(function (value) { return value.indexOf("@") < 0; }));
+      }
+      function extractEvidenceEmails(text) {
+        return uniqueValues((String(text || "").match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || []).map(function (value) { return value.toLowerCase(); }));
+      }
+      function hostFromEvidenceUrl(value) {
+        var candidate = String(value || "").trim();
+        if (!candidate) return "";
+        try {
+          var parsed = new URL(candidate.indexOf("://") >= 0 ? candidate : "https://" + candidate);
+          return parsed.hostname.toLowerCase().replace(/^www\./, "");
+        } catch (error) { return ""; }
+      }
+      function domainFromEvidenceEmail(value) {
+        var match = String(value || "").match(/@([^\s@]+)$/);
+        return match ? match[1].toLowerCase().replace(/^www\./, "") : "";
+      }
+      function isSuspiciousEvidenceHost(host) {
+        return /xn--/.test(host) || /^(?:\d{1,3}\.){3}\d{1,3}$/.test(host) || /(?:bit\.ly|tinyurl\.com|t\.co|goo\.gl|ow\.ly|cutt\.ly|is\.gd)$/.test(host) || /\.(?:top|click|zip|xyz|work|support|live)$/.test(host);
+      }
+      function isReservedEvidenceHost(host) {
+        return /\.(?:example|invalid|test)$/.test(String(host || "").toLowerCase());
+      }
+      function isInstitutionalHost(host) {
+        return /(?:^|\.)gov\.co$/.test(host) || /(?:^|\.)mil\.co$/.test(host);
+      }
+      function buildOfficialSources(result) {
+        var focus = result.domains[0] || result.senderDomain || result.entities[0] || "fraude digital";
+        var encodedFocus = encodeURIComponent("site:caivirtual.policia.gov.co \"" + focus + "\"");
+        var encodedGeneral = encodeURIComponent("site:mintic.gov.co OR site:colcert.gov.co fraude digital " + focus);
+        return [
+          { type: "Oficial", title: "CAI Virtual · Policía Nacional", detail: "Prevención, orientación y canal oficial para reportar incidentes cibernéticos.", href: "https://caivirtual.policia.gov.co/" },
+          { type: "Oficial", title: "ColCERT · reportar un incidente", detail: "Ruta institucional para contrastar y reportar un incidente de seguridad digital.", href: "https://colcert.gov.co/800/w3-article-198656.html" },
+          { type: "Oficial", title: "Fiscalía General de la Nación", detail: "Consulta la entidad directamente antes de usar un enlace recibido por mensaje.", href: "https://www.fiscalia.gov.co/colombia/" },
+          { type: "Oficial", title: "MinTIC · protección de datos", detail: "Recomendaciones para reconocer riesgos y proteger la información personal.", href: "https://mintic.gov.co/portal/historico/w3-article-125647.html" },
+          { type: "Búsqueda guiada", title: "Buscar la señal en CAI Virtual", detail: "Búsqueda restringida al dominio oficial con el foco extraído: " + focus + ".", href: "https://www.google.com/search?q=" + encodedFocus },
+          { type: "Búsqueda guiada", title: "Buscar contexto en MinTIC / ColCERT", detail: "Contrasta el dominio o término con publicaciones institucionales de ciberseguridad.", href: "https://www.google.com/search?q=" + encodedGeneral }
+        ];
+      }
+      function setAgentCheck(id, state, label) {
+        var item = document.getElementById(id);
+        if (!item) return;
+        item.setAttribute("data-state", state);
+        item.querySelector("span:last-child").textContent = label;
+      }
+      function renderAgentSources(sources) {
+        var list = document.getElementById("officialSourceList");
+        if (!sources || !sources.length) { list.innerHTML = '<div class="agent-empty">No hay fuentes sugeridas para esta evidencia.</div>'; return; }
+        list.innerHTML = sources.map(function (source) {
+          return '<div class="source-item"><div><a href="' + escapeHtml(source.href) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(source.title) + '</a><p>' + escapeHtml(source.detail) + '</p></div><span class="source-type">' + escapeHtml(source.type) + '</span></div>';
+        }).join("");
+      }
+      function renderLinkAnalysis(results) {
+        var box = document.getElementById("agentLinkAnalysis");
+        if (!box) return;
+        if (!Array.isArray(results) || !results.length) {
+          box.hidden = true;
+          return;
+        }
+        var first = results[0] || {};
+        var finalUrl = document.getElementById("agentFinalUrl");
+        var http = document.getElementById("agentLinkHttp");
+        var title = document.getElementById("agentLinkTitle");
+        var redirects = document.getElementById("agentLinkRedirects");
+        var summary = document.getElementById("agentLinkSummary");
+        box.hidden = false;
+        finalUrl.textContent = first.finalUrl || first.inputUrl || "No disponible";
+        http.textContent = first.status ? String(first.status) + " · " + (first.contentType || "contenido no identificado") : "No se pudo leer";
+        title.textContent = first.title || "Sin título público";
+        redirects.textContent = String(Array.isArray(first.redirects) ? first.redirects.length : 0);
+        var detail = first.error || first.excerpt || first.note || "No se obtuvo contenido adicional.";
+        summary.textContent = String(results.length) + (results.length === 1 ? " enlace revisado. " : " enlaces revisados. ") + detail;
+      }
+      function analyzeEvidence(typedText, senderEmail, ocrText, ocrRequested) {
+        var manualText = String(typedText || "").trim(), recognizedText = String(ocrText || "").trim();
+        var evidenceText = [manualText, recognizedText].filter(Boolean).join("\n");
+        var emails = extractEvidenceEmails([senderEmail, evidenceText].filter(Boolean).join("\n"));
+        var sender = String(senderEmail || emails[0] || "").trim();
+        var senderDomain = domainFromEvidenceEmail(sender) || (emails[0] ? domainFromEvidenceEmail(emails[0]) : "");
+        var links = extractEvidenceLinks(evidenceText);
+        var linkHosts = uniqueValues(links.map(hostFromEvidenceUrl).filter(Boolean));
+        var domains = uniqueValues([senderDomain].concat(linkHosts).filter(Boolean));
+        var lower = evidenceText.toLowerCase();
+        var entityTokens = ["bancolombia", "banco", "nequi", "daviplata", "dian", "fiscalia", "policia", "mintic", "colpensiones", "servientrega", "whatsapp", "microsoft", "google", "amazon"];
+        var entities = entityTokens.filter(function (token) { return lower.indexOf(token) >= 0; });
+        var base = analyzeText(evidenceText || sender);
+        var score = base.score, signals = base.signals.slice();
+        function addSignal(test, points, label) {
+          if (!test) return;
+          score += points;
+          if (signals.indexOf(label) < 0) signals.push(label);
+        }
+        var suspiciousHosts = linkHosts.filter(isSuspiciousEvidenceHost);
+        addSignal(suspiciousHosts.length > 0, 17, "Dominio con estructura atípica: " + suspiciousHosts[0]);
+        var reservedDomains = domains.filter(isReservedEvidenceHost);
+        addSignal(reservedDomains.length > 0, 21, "Usa un dominio reservado para pruebas, no una entidad verificable: " + reservedDomains[0]);
+        var shortened = linkHosts.filter(function (host) { return /(?:bit\.ly|tinyurl\.com|t\.co|goo\.gl|ow\.ly|cutt\.ly|is\.gd)$/.test(host); });
+        addSignal(shortened.length > 0, 13, "Usa un enlace acortado que oculta el destino final");
+        var mismatched = senderDomain && linkHosts.length && linkHosts.some(function (host) { return host !== senderDomain && host.indexOf(senderDomain) < 0 && senderDomain.indexOf(host) < 0; });
+        addSignal(mismatched, 9, "El dominio del remitente no coincide con el dominio del enlace");
+        var claimedOfficial = entities.some(function (entity) { return entity !== "banco" && linkHosts.some(function (host) { return host.indexOf(entity) >= 0; }); });
+        var publicClaimWithoutInstitutionalHost = entities.some(function (entity) { return ["dian", "fiscalia", "policia", "mintic", "colpensiones"].indexOf(entity) >= 0; }) && domains.length > 0 && !domains.some(isInstitutionalHost) && !claimedOfficial;
+        addSignal(publicClaimWithoutInstitutionalHost, 10, "Menciona una entidad pública, pero no muestra un dominio institucional visible");
+        var freeSender = /^(?:gmail\.com|hotmail\.com|outlook\.com|yahoo\.com|icloud\.com)$/.test(senderDomain);
+        addSignal(freeSender && entities.length > 0, 7, "El remitente usa un correo gratuito mientras se presenta como una entidad");
+        score = Math.max(3, Math.min(98, score));
+        var level = levelFromScore(score);
+        var focusSources = { domains: domains, senderDomain: senderDomain, entities: entities };
+        focusSources.sources = buildOfficialSources(focusSources);
+        var visibleSignals = signals.length ? signals : ["No se detectaron señales fuertes en el texto aportado"];
+        return {
+          score: score,
+          reliability: Math.max(2, 100 - score),
+          level: level,
+          sender: sender,
+          senderDomain: senderDomain,
+          emails: emails,
+          links: links,
+          domains: domains,
+          entities: entities,
+          signals: visibleSignals,
+          observedFacts: uniqueValues([
+            sender ? "Remitente extraído: " + sender : "",
+            domains.length ? "Dominios visibles o extraídos: " + domains.join(", ") : "",
+            links.length ? "Enlaces visibles o proporcionados: " + links.join(", ") : ""
+          ]).slice(0, 6),
+          unknowns: uniqueValues([
+            sender ? "" : "No se identificó un remitente con la evidencia disponible.",
+            links.length ? "" : "No se encontró un enlace visible o un destino pegado para comprobar.",
+            "La identidad de la entidad no se confirma solo por el logotipo o el diseño del mensaje."
+          ]).slice(0, 6),
+          evidenceQuality: ocrRequested ? "Media" : (evidenceText ? "Media" : "Baja"),
+          sources: focusSources.sources,
+          textLength: evidenceText.length,
+          ocrUsed: Boolean(recognizedText),
+          ocrRequested: Boolean(ocrRequested),
+          recognizedText: recognizedText,
+          linkInspection: [],
+          deepSeekUsed: false,
+          summary: level === "Alto" ? "La evidencia reúne señales de alta prioridad. La puntuación orienta la revisión y no prueba por sí sola que exista una estafa." : (level === "Medio" ? "La evidencia contiene señales que conviene contrastar antes de responder o abrir enlaces." : "La muestra no reúne señales fuertes, pero la ausencia de alertas no certifica la identidad del remitente."),
+          recommendation: level === "Alto" ? "No abras enlaces ni envíes códigos. Busca la entidad por tu cuenta y confirma la comunicación desde un canal oficial." : (level === "Medio" ? "Pausa antes de responder. Escribe tú mismo la dirección oficial y confirma el mensaje por un canal independiente." : "Puedes seguir conversando solo si esperabas el mensaje, pero mantén la precaución y no compartas información innecesaria.")
+        };
+      }
+      function renderEvidenceList(id, values, emptyLabel) {
+        var list = document.getElementById(id);
+        if (!list) return;
+        var items = Array.isArray(values) ? values.map(function (item) { return String(item || "").trim(); }).filter(Boolean) : [];
+        list.innerHTML = items.length ? items.map(function (item) { return "<li>" + escapeHtml(item) + "</li>"; }).join("") : "<li class=\"agent-empty\">" + escapeHtml(emptyLabel) + "</li>";
+      }
+      function renderAgentResult(result) {
+        agentLastResult = result;
+        var levelClass = result.level.toLowerCase();
+        var badge = document.getElementById("agentBadge");
+        document.getElementById("agentScore").textContent = result.score;
+        document.getElementById("agentReliability").textContent = result.reliability + "%";
+        document.getElementById("agentMeter").style.width = result.score + "%";
+        badge.textContent = "Riesgo " + levelClass;
+        badge.className = "risk-badge " + levelClass;
+        document.getElementById("agentMeta").textContent = (result.deepSeekUsed ? (result.provider || "IA configurada") + " + evidencia local" : (result.ocrUsed ? "Preanálisis OCR local" : "Preanálisis local")) + " · " + result.textLength + " caracteres · " + result.links.length + " enlace(s)" + (result.evidenceQuality ? " · evidencia " + result.evidenceQuality.toLowerCase() : "");
+        document.getElementById("agentSummary").textContent = result.summary;
+        document.getElementById("agentRecommendation").textContent = result.recommendation;
+        document.getElementById("agentModelNote").textContent = result.deepSeekUsed ? "La lectura combina señales locales, contenido público observado y " + (result.model || deepSeekModelName) + ". Se muestran por separado los hechos observados y lo que todavía no pudo comprobarse. La decisión final sigue siendo humana." : "Esto es un preanálisis local; para una lectura de IA sobre la imagen y el contexto del enlace, comprueba un proveedor en Configuración.";
+        document.getElementById("agentSenderTrace").textContent = result.sender || "No indicado";
+        document.getElementById("agentDomainTrace").textContent = result.domains.length + (result.domains.length === 1 ? " encontrado" : " encontrados");
+        document.getElementById("agentLinkTrace").textContent = result.links.length + (result.links.length === 1 ? " encontrado" : " encontrados");
+        document.getElementById("agentSignalList").innerHTML = result.signals.map(function (signal) { return "<li>" + escapeHtml(signal) + "</li>"; }).join("");
+        renderEvidenceList("agentObservedList", result.observedFacts && result.observedFacts.length ? result.observedFacts : result.signals, "No hay hechos confirmados por la evidencia disponible.");
+        renderEvidenceList("agentUnknownList", result.unknowns, "No quedaron puntos pendientes en esta lectura.");
+        setAgentCheck("visionCheck", result.ocrUsed ? "done" : (result.ocrRequested ? "error" : "pending"), result.ocrUsed ? "Visión y OCR · texto extraído de la captura" : (result.ocrRequested ? "Visión y OCR · no fue posible extraer texto; revisa la captura o pega el contenido" : "Visión y OCR · pendiente de una captura"));
+        setAgentCheck("signalCheck", "done", "Señales de enlace y lenguaje · " + result.signals.length + " observación(es)");
+        setAgentCheck("sourceCheck", "done", "Fuentes oficiales · " + result.sources.length + " ruta(s) de comprobación listas");
+        renderLinkAnalysis(result.linkInspection || []);
+        renderAgentSources(result.sources);
+      }
+      function setAgentStatus(message, state) {
+        var status = document.getElementById("agentStatus");
+        status.textContent = message;
+        status.setAttribute("data-state", state || "");
+      }
+      function resetAgentView() {
+        agentLastResult = null;
+        document.getElementById("agentScore").textContent = "-";
+        document.getElementById("agentReliability").textContent = "-";
+        document.getElementById("agentMeter").style.width = "0%";
+        document.getElementById("agentBadge").textContent = "Pendiente";
+        document.getElementById("agentBadge").className = "risk-badge medium";
+        document.getElementById("agentMeta").textContent = "Sin análisis ejecutado todavía";
+        document.getElementById("agentSummary").textContent = "Ejecuta la verificación para separar señales observables, dominios encontrados y fuentes oficiales que conviene revisar.";
+        document.getElementById("agentRecommendation").textContent = "No respondas todavía. Busca el sitio oficial por tu cuenta y confirma la comunicación por un canal independiente.";
+        document.getElementById("agentModelNote").textContent = "Aún no se ha ejecutado el agente.";
+        document.getElementById("agentSenderTrace").textContent = "-";
+        document.getElementById("agentDomainTrace").textContent = "0 encontrados";
+        document.getElementById("agentLinkTrace").textContent = "0 encontrados";
+        document.getElementById("agentSignalList").innerHTML = '<li class="agent-empty">Todavía no hay evidencia para interpretar.</li>';
+        renderEvidenceList("agentObservedList", [], "Todavía no hay hechos confirmados.");
+        renderEvidenceList("agentUnknownList", [], "Todavía no hay puntos pendientes.");
+        renderLinkAnalysis([]);
+        setAgentCheck("visionCheck", "pending", "Visión y OCR · pendiente de una captura");
+        setAgentCheck("signalCheck", "pending", "Señales de enlace y lenguaje · pendiente");
+        setAgentCheck("sourceCheck", "pending", "Fuentes oficiales · pendiente");
+        document.getElementById("officialSourceList").innerHTML = '<div class="agent-empty">Al terminar el análisis aparecerán enlaces de CAI Virtual, Fiscalía y MinTIC/ColCERT junto con una búsqueda guiada.</div>';
+        setAgentStatus("Listo para recibir evidencia.", "");
+      }
+      async function readEvidenceImage(file) {
+        if (!window.Tesseract || typeof window.Tesseract.createWorker !== "function") return "";
+        var worker = null;
+        try {
+          worker = await window.Tesseract.createWorker("spa");
+          var output = await worker.recognize(file);
+          return output && output.data ? String(output.data.text || "").trim() : "";
+        } finally {
+          if (worker) await worker.terminate();
+        }
+      }
+      function readFileAsDataUrl(file) {
+        if (!file) return Promise.resolve("");
+        if (file.size > 8 * 1024 * 1024) return Promise.reject(new Error("La imagen supera 8 MB para el análisis remoto."));
+        return new Promise(function (resolve, reject) {
+          var reader = new FileReader();
+          reader.onload = function () { resolve(String(reader.result || "")); };
+          reader.onerror = function () { reject(new Error("No se pudo leer la imagen para DeepSeek.")); };
+          reader.readAsDataURL(file);
+        });
+      }
+      function setDeepSeekStatus(message, state, modelName) {
+        var status = document.getElementById("deepSeekStatus");
+        var modelLabel = document.getElementById("deepSeekModel");
+        if (status) { status.textContent = message; status.setAttribute("data-state", state || ""); }
+        if (modelLabel) modelLabel.textContent = modelName || deepSeekModelName;
+        var sidebarStatus = document.getElementById("sidebarAgentStatus");
+        var sidebarDot = document.getElementById("sidebarAgentDot");
+        if (sidebarStatus) sidebarStatus.textContent = deepSeekAvailable ? "Agente IA conectado" : "Agente local";
+        if (sidebarDot) sidebarDot.style.background = deepSeekAvailable ? "var(--mint)" : "var(--amber)";
+        var settingsLabel = document.getElementById("settingsProviderLabel");
+        if (settingsLabel) settingsLabel.textContent = deepSeekAvailable ? providerLabel(providerConfig) + " · " + (modelName || deepSeekModelName) : "Sin proveedor comprobado";
+      }
+      async function checkDeepSeek() {
+        loadProviderConfig();
+        applyProviderConfigToForm();
+        try {
+          var response = await fetch(apiUrl("/api/health"), { cache: "no-store" });
+          if (!response.ok) throw new Error("Servidor local no disponible");
+          var payload = await response.json();
+          deepSeekModelName = payload.model || "deepseek-flash";
+          if (!providerConfig.apiKey && payload.deepseekConfigured && /deepseek\.com/i.test(providerConfig.endpoint)) {
+            deepSeekAvailable = true;
+            providerVerified = true;
+            setDeepSeekStatus("DeepSeek listo en servidor local", "ready", deepSeekModelName);
+            setProviderSettingsStatus("Se encontró una clave de DeepSeek en .env.local.", "success");
+          } else if (providerConfig.apiKey) {
+            deepSeekAvailable = false;
+            setDeepSeekStatus("API guardada; falta comprobarla", "", providerConfig.model || "sin comprobar");
+            setProviderSettingsStatus("Pulsa “Comprobar API” para validar la clave guardada.", "");
+          } else {
+            deepSeekAvailable = false;
+            setDeepSeekStatus("Servidor local listo, falta configurar la API", "", "modo local");
+            setProviderSettingsStatus("Configura un proveedor para activar el análisis con IA.", "");
+          }
+        } catch (error) {
+          deepSeekAvailable = false;
+          deepSeekModelName = "modo local";
+          setDeepSeekStatus("Servidor local no disponible", "error", deepSeekModelName);
+          setProviderSettingsStatus(localServerErrorMessage(), "error");
+        }
+      }
+      async function checkProviderConnection() {
+        var button = document.getElementById("checkProviderBtn");
+        var config = readProviderConfigFromForm();
+        if (!config.apiKey) {
+          setProviderSettingsStatus("Pega una API key antes de comprobar la conexión.", "error");
+          document.getElementById("providerApiKey").focus();
+          return;
+        }
+        providerConfig = config;
+        providerVerified = false;
+        deepSeekAvailable = false;
+        button.disabled = true;
+        button.setAttribute("aria-busy", "true");
+        setProviderSettingsStatus("Comprobando endpoint, modelo y credenciales…", "loading");
+        setDeepSeekStatus("Comprobando API…", "", config.model || "sin modelo");
+        try {
+          var response = await fetch(apiUrl("/api/provider/check"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ provider: config })
+          });
+          var payload = await response.json().catch(function () { return {}; });
+          if (!response.ok) throw new Error(payload.error || "El proveedor no respondió correctamente.");
+          providerVerified = true;
+          deepSeekAvailable = true;
+          deepSeekModelName = payload.model || config.model || "modelo configurado";
+          saveProviderConfig(config);
+          setProviderSettingsStatus((payload.message || "API comprobada correctamente") + " · " + (payload.latencyMs || 0) + " ms.", "success");
+          setDeepSeekStatus(providerLabel(config) + " listo para analizar", "ready", deepSeekModelName);
+          showToast("Proveedor de IA comprobado.");
+        } catch (error) {
+          providerVerified = false;
+          deepSeekAvailable = false;
+          setProviderSettingsStatus(error.message === "Failed to fetch" ? localServerErrorMessage() : (error.message || "No se pudo comprobar la API."), "error");
+          setDeepSeekStatus("API no comprobada", "error", config.model || "sin conexión");
+        } finally {
+          button.disabled = false;
+          button.removeAttribute("aria-busy");
+        }
+      }
+      async function requestLinkInspection(links) {
+        if (!Array.isArray(links) || !links.length) return [];
+        var response = await fetch(apiUrl("/api/inspect-links"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ links: links.slice(0, 5) })
+        });
+        var payload = await response.json().catch(function () { return {}; });
+        if (!response.ok) throw new Error(payload.error || "No se pudieron leer los enlaces.");
+        return Array.isArray(payload.links) ? payload.links : [];
+      }
+      async function requestDeepSeekVerification(localResult, typedText, senderEmail, ocrText, linkEvidence) {
+        var imageDataUrl = agentFile ? await readFileAsDataUrl(agentFile) : "";
+        var response = await fetch(apiUrl("/api/verify"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            provider: providerConfig,
+            text: typedText,
+            senderEmail: senderEmail,
+            ocrText: ocrText,
+            imageDataUrl: imageDataUrl,
+            links: localResult.links,
+            domains: localResult.domains,
+            localSignals: localResult.signals,
+            linkEvidence: linkEvidence || []
+          })
+        });
+        var payload = await response.json().catch(function () { return {}; });
+        if (!response.ok) throw new Error(payload.error || "El agente remoto no pudo responder.");
+        return payload;
+      }
+      function mergeAgentResults(localResult, remotePayload) {
+        var remote = remotePayload && remotePayload.result ? remotePayload.result : remotePayload;
+        if (!remote || typeof remote !== "object") return localResult;
+        var score = Number(remote.score);
+        var confidence = Number(remote.confidence);
+        var remoteLevel = String(remote.level || "").toLowerCase();
+        var remoteSummary = String(remote.summary || "").trim();
+        var remoteSignals = Array.isArray(remote.signals) ? remote.signals.map(function (item) { return String(item); }).filter(Boolean) : [];
+        if (!Number.isFinite(score) || !Number.isFinite(confidence) || !remoteSummary || !["alto", "medio", "bajo"].includes(remoteLevel) || !remoteSignals.length) return localResult;
+        var level = remoteLevel === "alto" ? "Alto" : (remoteLevel === "medio" ? "Medio" : (remoteLevel === "bajo" ? "Bajo" : levelFromScore(Number.isFinite(score) ? score : localResult.score)));
+        return Object.assign({}, localResult, {
+          score: Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : localResult.score,
+          reliability: Number.isFinite(confidence) && confidence > 0 ? Math.max(0, Math.min(100, Math.round(confidence))) : localResult.reliability,
+          level: level,
+          evidenceQuality: ["alta", "media", "baja"].includes(String(remote.evidenceQuality || "").toLowerCase()) ? String(remote.evidenceQuality).replace(/^./, function (letter) { return letter.toUpperCase(); }) : localResult.evidenceQuality,
+          summary: remoteSummary,
+          recommendation: String(remote.recommendation || localResult.recommendation),
+          signals: uniqueValues(localResult.signals.concat(remoteSignals)).slice(0, 7),
+          observedFacts: Array.isArray(remote.observedFacts) && remote.observedFacts.length ? remote.observedFacts.map(function (item) { return String(item); }).filter(Boolean).slice(0, 6) : localResult.observedFacts,
+          unknowns: Array.isArray(remote.unknowns) && remote.unknowns.length ? remote.unknowns.map(function (item) { return String(item); }).filter(Boolean).slice(0, 6) : localResult.unknowns,
+          linkFindings: Array.isArray(remote.linkFindings) ? remote.linkFindings.map(function (item) { return String(item); }).slice(0, 6) : [],
+          deepSeekUsed: true,
+          provider: remotePayload.provider || providerLabel(providerConfig),
+          model: remotePayload.model || deepSeekModelName,
+          searchTerms: Array.isArray(remote.searchTerms) ? remote.searchTerms : []
+        });
+      }
+      async function runEvidenceAgents() {
+        var typedText = document.getElementById("evidenceText").value.trim();
+        var senderEmail = document.getElementById("senderEmail").value.trim();
+        var evidenceLink = document.getElementById("evidenceLink").value.trim();
+        if (!typedText && !senderEmail && !evidenceLink && !agentFile) {
+          setAgentStatus("Agrega texto, remitente o una captura para comenzar.", "error");
+          showToast("Falta evidencia para analizar.");
+          document.getElementById("evidenceText").focus();
+          return;
+        }
+        if (evidenceLink) typedText = [typedText, "Destino proporcionado manualmente: " + evidenceLink].filter(Boolean).join("\n");
+        var runButton = document.getElementById("runAgentsBtn");
+        var output = document.getElementById("agentOutput");
+        runButton.disabled = true;
+        runButton.setAttribute("aria-busy", "true");
+        output.setAttribute("aria-busy", "true");
+        var ocrText = "";
+        if (agentFile) {
+          setAgentStatus("Paso 1/4 · leyendo la captura en el navegador...", "loading");
+          try {
+            ocrText = await readEvidenceImage(agentFile);
+            if (ocrText) setAgentStatus("Paso 2/4 · texto extraído; revisando enlaces y señales...", "loading");
+            else setAgentStatus("Paso 2/4 · no se obtuvo texto legible; revisando lo que escribiste...", "loading");
+          } catch (error) {
+            setAgentStatus("OCR no disponible; se analizará el texto ingresado manualmente.", "error");
+          }
+        } else {
+          setAgentStatus("Paso 1/4 · sin captura; pasando al texto y al remitente...", "loading");
+        }
+        var result = analyzeEvidence(typedText, senderEmail, ocrText, Boolean(agentFile));
+        var linkError = null;
+        if (result.links.length) {
+          setAgentStatus("Paso 3/4 · leyendo hasta cinco destinos públicos y sus redirecciones...", "loading");
+          try {
+            result.linkInspection = await requestLinkInspection(result.links);
+          } catch (error) {
+            linkError = error;
+            result.linkInspection = [];
+          }
+        }
+        var useRemote = deepSeekAvailable && document.getElementById("useDeepSeek").checked;
+        var remoteError = null;
+        if (useRemote) {
+          setAgentStatus("Paso 4/4 · " + providerLabel(providerConfig) + " está contrastando texto, imagen, enlace y señales...", "loading");
+          try {
+            result = mergeAgentResults(result, await requestDeepSeekVerification(result, typedText, senderEmail, ocrText, result.linkInspection));
+          } catch (error) {
+            remoteError = error;
+          }
+        }
+        renderAgentResult(result);
+        if (result.deepSeekUsed) {
+          setAgentStatus("Análisis completado con " + (result.provider || providerLabel(providerConfig)) + ". Revisa la evidencia antes de actuar.", "success");
+        } else if (remoteError) {
+          setAgentStatus((remoteError.message || "El proveedor no respondió") + " Se muestra el preanálisis local.", "error");
+        } else if (document.getElementById("useDeepSeek").checked && !deepSeekAvailable) {
+          setAgentStatus("Preanálisis local completado. Comprueba una API en Configuración para activar la IA real.", "error");
+        } else if (linkError) {
+          setAgentStatus("Preanálisis local completado; no se pudo leer el enlace desde el servidor.", "error");
+        } else {
+          setAgentStatus("Preanálisis local completado; fuentes oficiales listas para comprobar.", "");
+        }
+        output.setAttribute("aria-busy", "false");
+        runButton.disabled = false;
+        runButton.removeAttribute("aria-busy");
+        showToast(result.deepSeekUsed ? "Análisis de IA listo." : "Preanálisis local listo.");
+      }
+      function getSnapshot() {
+        var averageRisk = filtered.length ? Math.round(sum(filtered, "riesgo") / filtered.length) : 0;
+        return { filters: { channel: els.channel.value, risk: els.risk.value, category: els.category.value, from: els.from.value, to: els.to.value }, records: filtered.length, averageRisk: averageRisk, highRisk: filtered.filter(function (row) { return levelFromScore(row.riesgo) === "Alto"; }).length };
+      }
+      function registerWebMcp() {
+        var context = document.modelContext;
+        if (!context || typeof context.registerTool !== "function") return;
+        var lifecycle = new AbortController();
+        try {
+          void Promise.resolve(context.registerTool({ name: "read_sigma_f_dashboard", title: "Leer indicadores SIGMA-F", description: "Consulta los indicadores visibles de riesgo y los filtros actuales del dashboard SIGMA-F.", inputSchema: { type: "object", properties: {}, additionalProperties: false }, annotations: { readOnlyHint: true, untrustedContentHint: false }, execute: function () { return getSnapshot(); } }, { signal: lifecycle.signal })).catch(function () {});
+          void Promise.resolve(context.registerTool({ name: "set_sigma_f_filters", title: "Filtrar reportes SIGMA-F", description: "Actualiza los filtros visibles del dashboard SIGMA-F y devuelve el resumen resultante.", inputSchema: { type: "object", properties: { channel: { type: "string" }, risk: { type: "string", enum: ["all", "Alto", "Medio", "Bajo"] }, category: { type: "string" }, from: { type: "string" }, to: { type: "string" } }, additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: false }, execute: function (input) { input = input || {}; if (input.risk && ["all", "Alto", "Medio", "Bajo"].indexOf(input.risk) < 0) throw new Error("Nivel de riesgo no válido."); if (input.channel && input.channel !== "all" && Array.from(new Set(data.map(function (row) { return row.canal; }))).indexOf(input.channel) < 0) throw new Error("Canal no encontrado."); if (input.category && input.category !== "all" && Array.from(new Set(data.map(function (row) { return row.categoria; }))).indexOf(input.category) < 0) throw new Error("Categoría no encontrada."); if (input.channel != null) els.channel.value = input.channel; if (input.risk != null) els.risk.value = input.risk; if (input.category != null) els.category.value = input.category; if (input.from != null) els.from.value = input.from; if (input.to != null) els.to.value = input.to; render(); return getSnapshot(); } }, { signal: lifecycle.signal })).catch(function () {});
+          void Promise.resolve(context.registerTool({ name: "verify_sigma_f_message", title: "Verificar mensaje con SIGMA-F", description: "Envía un mensaje al mismo flujo del agente de verificación y devuelve señales explicables. No certifica la autenticidad del mensaje.", inputSchema: { type: "object", properties: { message: { type: "string", minLength: 1 } }, required: ["message"], additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: true }, execute: function (input) { if (!input || !String(input.message || "").trim()) throw new Error("El mensaje no puede estar vacío."); var result = analyzeEvidence(input.message, "", "", false); renderAgentResult(result); setAgentStatus("Verificación local completada; fuentes oficiales listas para comprobar.", ""); return { score: result.score, level: result.level, signals: result.signals, recommendation: result.recommendation, officialSources: result.sources }; } }, { signal: lifecycle.signal })).catch(function () {});
+          void Promise.resolve(context.registerTool({ name: "analyze_sigma_f_evidence", title: "Investigar evidencia con SIGMA-F", description: "Analiza texto y remitente localmente, extrae enlaces y prepara rutas de consulta en fuentes oficiales. No certifica la autenticidad del mensaje.", inputSchema: { type: "object", properties: { text: { type: "string" }, senderEmail: { type: "string" } }, additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, untrustedContentHint: true }, execute: function (input) { input = input || {}; if (!String(input.text || "").trim() && !String(input.senderEmail || "").trim()) throw new Error("Agrega texto o un remitente para investigar."); var result = analyzeEvidence(input.text, input.senderEmail, "", false); renderAgentResult(result); setAgentStatus("Verificación local completada; fuentes oficiales listas para comprobar.", ""); return { score: result.score, reliability: result.reliability, level: result.level, signals: result.signals, domains: result.domains, links: result.links, officialSources: result.sources }; } }, { signal: lifecycle.signal })).catch(function () {});
+        } catch (error) {}
+      }
+
+      document.getElementById("applyFilters").addEventListener("click", function () { render(); showToast("Filtros aplicados."); });
+      document.getElementById("resetFilters").addEventListener("click", function () { els.channel.value = "all"; els.risk.value = "all"; els.category.value = "all"; els.from.value = "2026-09-01"; els.to.value = "2026-09-21"; render(); showToast("Filtros restablecidos."); });
+      document.getElementById("exportBtn").addEventListener("click", function () { exportRows(filtered); });
+      document.getElementById("templateBtn").addEventListener("click", function () { downloadFile("plantilla-sigma-f.csv", "fecha;canal;categoria;ciudad;entidad;mensaje;solicita_dinero;solicita_codigo;tiene_enlace;urgencia;monto_cop;riesgo;estado;reportes\n2026-09-22;WhatsApp;Phishing;Bogotá;Entidad financiera;Confirma tu código en este enlace;false;true;true;Alta;250000;80;Nuevo;1\n", "text/csv;charset=utf-8"); showToast("Plantilla CSV descargada."); });
+      document.getElementById("clearRecordsBtn").addEventListener("click", function () {
+        if (!data.length) { showToast("No quedan registros para eliminar."); return; }
+        if (!window.confirm("¿Eliminar todos los registros de la muestra actual? Esta acción solo afecta esta sesión.")) return;
+        data = [];
+        populateFilters();
+        document.getElementById("clearRecordsBtn").disabled = true;
+        document.getElementById("restoreRecordsBtn").hidden = false;
+        document.getElementById("sourceLabel").textContent = "Sin registros";
+        document.getElementById("updatedLabel").textContent = "Eliminado ahora";
+        render();
+        showToast("Registros eliminados de esta sesión.");
+      });
+      document.getElementById("restoreRecordsBtn").addEventListener("click", function () {
+        data = initialData.map(function (row) { return normalizeRow(row); });
+        populateFilters();
+        document.getElementById("clearRecordsBtn").disabled = false;
+        document.getElementById("restoreRecordsBtn").hidden = true;
+        document.getElementById("sourceLabel").textContent = "Datos simulados";
+        document.getElementById("updatedLabel").textContent = "Muestra restaurada";
+        render();
+        showToast("Muestra simulada restaurada.");
+      });
+      document.getElementById("csvInput").addEventListener("change", function (event) { var file = event.target.files && event.target.files[0]; if (!file) return; var reader = new FileReader(); reader.onload = function () { var imported = parseCsv(String(reader.result || "")); if (!imported.length) { showToast("No se encontraron filas válidas en el CSV."); return; } data = imported; populateFilters(); var dates = data.map(function (row) { return row.fecha; }).sort(); els.from.value = dates[0]; els.to.value = dates[dates.length - 1]; document.getElementById("sourceLabel").textContent = "Datos importados"; document.getElementById("updatedLabel").textContent = "Actualizado ahora"; render(); showToast(imported.length + " reportes importados correctamente."); }; reader.readAsText(file, "UTF-8"); });
+      document.getElementById("runAgentsBtn").addEventListener("click", function () { void runEvidenceAgents(); });
+      document.getElementById("checkProviderBtn").addEventListener("click", function () { void checkProviderConnection(); });
+      document.getElementById("providerSelect").addEventListener("change", function () {
+        var endpoint = document.getElementById("providerEndpoint");
+        var modelInput = document.getElementById("providerModel");
+        if (this.value === "deepseek") {
+          if (!endpoint.value || endpoint.value === "https://api.openai.com/v1/chat/completions") endpoint.value = "https://api.deepseek.com/chat/completions";
+          if (!modelInput.value || modelInput.value === "gpt-4o-mini") modelInput.value = "deepseek-flash";
+        } else {
+          if (endpoint.value === "https://api.deepseek.com/chat/completions") endpoint.value = "";
+          if (modelInput.value === "deepseek-flash") modelInput.value = "";
+        }
+        resetProviderVerification("Cambiaste el proveedor; comprueba la nueva configuración.");
+      });
+      ["providerEndpoint", "providerModel", "providerApiKey", "rememberProviderKey"].forEach(function (id) {
+        var field = document.getElementById(id);
+        field.addEventListener(field.type === "checkbox" ? "change" : "input", function () { resetProviderVerification(); });
+      });
+      document.getElementById("useDeepSeek").addEventListener("change", function () {
+        setAgentStatus(this.checked ? "El agente intentará usar el proveedor comprobado." : "Modo local seleccionado; no se enviará evidencia al proveedor.", this.checked ? "" : "");
+      });
+      document.getElementById("evidenceImage").addEventListener("change", function (event) {
+        var file = event.target.files && event.target.files[0];
+        if (!file) return;
+        if (!/^image\//.test(file.type)) { setAgentStatus("Selecciona una imagen PNG, JPG o WEBP.", "error"); return; }
+        agentFile = file;
+        if (agentPreviewUrl) URL.revokeObjectURL(agentPreviewUrl);
+        agentPreviewUrl = URL.createObjectURL(file);
+        document.getElementById("evidencePreview").src = agentPreviewUrl;
+        document.getElementById("evidencePreviewFrame").classList.add("visible");
+        setAgentStatus("Captura lista: " + file.name + ". Ejecuta los agentes cuando quieras.", "success");
+      });
+      document.getElementById("clearEvidenceBtn").addEventListener("click", function () {
+        document.getElementById("evidenceText").value = "";
+        document.getElementById("senderEmail").value = "";
+        document.getElementById("evidenceLink").value = "";
+        document.getElementById("evidenceImage").value = "";
+        agentFile = null;
+        if (agentPreviewUrl) { URL.revokeObjectURL(agentPreviewUrl); agentPreviewUrl = ""; }
+        document.getElementById("evidencePreview").src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+        document.getElementById("evidencePreviewFrame").classList.remove("visible");
+        resetAgentView();
+        showToast("Evidencia limpiada.");
+      });
+      function syncNavigation() {
+        var current = window.location.hash || "#overview";
+        document.querySelectorAll(".nav a").forEach(function (link) { link.classList.toggle("active", link.getAttribute("href") === current); });
+      }
+      window.addEventListener("hashchange", syncNavigation);
+      syncNavigation();
+
+      populateFilters();
+      document.getElementById("clearRecordsBtn").disabled = false;
+      render();
+      void checkDeepSeek();
+      registerWebMcp();
+    }());
+  </script>
+</body>
+</html>
