@@ -951,6 +951,7 @@
       var agentLastResult = null;
       var deepSeekAvailable = false;
       var deepSeekModelName = "modo local";
+      var serverDeepSeekKey = false;
       var providerVerified = false;
       var providerStorageKey = "sigma-f-provider-config-v1";
       var providerConfig = { provider: "deepseek", endpoint: "https://api.deepseek.com/chat/completions", model: "deepseek-flash", apiKey: "", remember: false };
@@ -1512,6 +1513,7 @@
           if (!response.ok) throw new Error("Servidor local no disponible");
           var payload = await response.json();
           deepSeekModelName = payload.model || "deepseek-flash";
+          serverDeepSeekKey = Boolean(payload.deepseekConfigured);
           if (!providerConfig.apiKey && payload.deepseekConfigured && /deepseek\.com/i.test(providerConfig.endpoint)) {
             deepSeekAvailable = true;
             providerVerified = true;
@@ -1536,7 +1538,7 @@
       async function checkProviderConnection() {
         var button = document.getElementById("checkProviderBtn");
         var config = readProviderConfigFromForm();
-        if (!config.apiKey) {
+        if (!config.apiKey && !(serverDeepSeekKey && /deepseek\.com/i.test(config.endpoint))) {
           setProviderSettingsStatus("Pega una API key antes de comprobar la conexión.", "error");
           document.getElementById("providerApiKey").focus();
           return;
